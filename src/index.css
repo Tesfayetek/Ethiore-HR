@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary: #186382;
+    --primaryDark: #0E3D52;
+    --primaryDarkest: #082836;
+    --primaryLight: #227D9E;
+    --primaryMuted: #EBF3F7;
+    --accent: #CCA352;
+    --accentDark: #A6802C;
+    --accentLight: #E2BE6C;
+    --accentMuted: #FAF3E3;
+    --background: #F8FAFC;
+    --surface: #FFFFFF;
+    --textPrimary: #0B2533;
+    --textSecondary: #475B66;
+    --border: #DFE9ED;
+  }
+}
+
+/* Screen vs Print display utilities */
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
+
+@media print {
+  /* Hide application navigation, sidebar, menus, buttons, filters and interactive controls */
+  header,
+  aside,
+  nav,
+  .no-print,
+  button,
+  input,
+  select,
+  textarea,
+  .sidebar,
+  [role="dialog"] button,
+  .alert-banner {
+    display: none !important;
+  }
+
+  /* When a modal dialog is open, isolate it and hide the background page */
+  body:has([role="dialog"]) main,
+  body:has([role="dialog"]) header,
+  body:has([role="dialog"]) aside,
+  body:has([role="dialog"]) nav {
+    display: none !important;
+  }
+
+  [role="dialog"] {
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  [role="dialog"] > div {
+    max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .screen-only {
+    display: none !important;
+  }
+
+  /* Reset layout for full-width print canvas */
+  html,
+  body,
+  #root {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    max-width: 100% !important;
+    background: transparent !important;
+  }
+
+  /* A4 page configuration */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 12mm 15mm 12mm;
+  }
+
+  @page landscape {
+    size: A4 landscape;
+    margin: 10mm 10mm 12mm 10mm;
+  }
+
+  .page-landscape {
+    page: landscape;
+  }
+
+  /* Ensure table repeating headers and prevent row page breaks */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tfoot {
+    display: table-footer-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: #0b2545 !important;
+    border: 1px solid #cbd5e1 !important;
+    font-weight: 700 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    padding: 6px 8px !important;
+  }
+
+  td {
+    border: 1px solid #e2e8f0 !important;
+    padding: 5px 8px !important;
+    color: #1e293b !important;
+  }
+
+  /* Hide table action columns when printing */
+  th.no-print,
+  td.no-print {
+    display: none !important;
+  }
+
+  /* Remove elevation, drop shadows, and fix overflow containers */
+  .bg-white,
+  .rounded-xl,
+  .border {
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+  }
+
+  .overflow-x-auto,
+  .overflow-y-auto,
+  [class*="max-h-"] {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  /* Handle modals and overlays cleanly when printed */
+  .fixed.inset-0 {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  .shadow-2xl,
+  .shadow-xl,
+  .shadow-lg,
+  .shadow-md,
+  .shadow-xs,
+  .shadow-sm {
+    box-shadow: none !important;
+  }
+
+  /* Utility classes for print control */
+  .avoid-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .break-before-page {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  /* Page number counter support */
+  body {
+    counter-reset: page;
+  }
+  .print-page-number::after {
+    content: " " counter(page);
+  }
+}
+

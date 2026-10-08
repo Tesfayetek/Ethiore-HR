@@ -1,0 +1,6 @@
+{
+  "name": "Ethiopian Reinsurance HRMS",
+  "description": "Human Resource Management System for Ethiopian Reinsurance S.C. featuring Employee Master Data, Leave Management, Attendance tracking, and Configuration Settings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

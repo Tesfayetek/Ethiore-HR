@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "users": {
+      "fields": {
+        "id": { "type": "string", "description": "Unique user ID" },
+        "email": { "type": "string", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Full name of the user" },
+        "role": { "type": "string", "description": "Exact role: Administrator, HR Admin, or Employee" },
+        "employeeId": { "type": "string", "description": "Linked Employee Master Data employeeId e.g. ER-012" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" },
+        "status": { "type": "string", "description": "Active or Inactive" }
+      }
+    },
+    "employees": {
+      "fields": {
+        "id": { "type": "string", "description": "Internal document ID" },
+        "employeeId": { "type": "string", "description": "Unique company Employee ID e.g. ER-001" },
+        "fullName": { "type": "string", "description": "Full legal name" },
+        "gender": { "type": "string", "description": "Male or Female" },
+        "dateOfBirth": { "type": "string", "description": "YYYY-MM-DD" },
+        "employmentDate": { "type": "string", "description": "YYYY-MM-DD" },
+        "department": { "type": "string", "description": "Assigned department" },
+        "position": { "type": "string", "description": "Job title / position" },
+        "employmentType": { "type": "string", "description": "Permanent, Contract, Probation, Intern" },
+        "workLocation": { "type": "string", "description": "Work location e.g. Addis Ababa Head Office" },
+        "manager": { "type": "string", "description": "Supervisor/Manager name" },
+        "phoneNumber": { "type": "string", "description": "Contact phone number" },
+        "emailAddress": { "type": "string", "description": "Company email address" },
+        "photo": { "type": "string", "description": "URL or avatar placeholder" },
+        "status": { "type": "string", "description": "Active or Inactive" },
+        "leaveBalance": { "type": "number", "description": "Current available statutory leave balance in days" }
+      }
+    },
+    "leaves": {
+      "fields": {
+        "id": { "type": "string", "description": "Leave record ID" },
+        "employeeId": { "type": "string", "description": "Target Employee ID" },
+        "employeeName": { "type": "string", "description": "Denormalized Employee Name" },
+        "leaveType": { "type": "string", "description": "Annual, Sick, Maternity, Paternity, Compassionate, Study" },
+        "startDate": { "type": "string", "description": "Start date YYYY-MM-DD" },
+        "endDate": { "type": "string", "description": "End date YYYY-MM-DD" },
+        "days": { "type": "number", "description": "Total working days" },
+        "reason": { "type": "string", "description": "Leave reason" },
+        "status": { "type": "string", "description": "Pending, Approved, Rejected, Taken, Cancelled" },
+        "appliedDate": { "type": "string", "description": "Application date" },
+        "approvedBy": { "type": "string", "description": "User who approved" }
+      }
+    },
+    "attendance": {
+      "fields": {
+        "id": { "type": "string", "description": "Attendance record ID" },
+        "date": { "type": "string", "description": "Record date YYYY-MM-DD" },
+        "employeeId": { "type": "string", "description": "Target Employee ID" },
+        "employeeName": { "type": "string", "description": "Employee Full Name" },
+        "department": { "type": "string", "description": "Department name" },
+        "checkIn": { "type": "string", "description": "Check-in time HH:mm" },
+        "checkOut": { "type": "string", "description": "Check-out time HH:mm" },
+        "workingHours": { "type": "number", "description": "Total calculated hours" },
+        "status": { "type": "string", "description": "Present, Late, Absent, Half Day, On Leave, Holiday" },
+        "notes": { "type": "string", "description": "Attendance notes" }
+      }
+    },
+    "overtime": {
+      "fields": {
+        "id": { "type": "string", "description": "Overtime record ID" },
+        "employeeId": { "type": "string", "description": "Target Employee ID" },
+        "employeeName": { "type": "string", "description": "Employee Name" },
+        "date": { "type": "string", "description": "Date worked YYYY-MM-DD" },
+        "normalHours": { "type": "number", "description": "Standard shift hours" },
+        "overtimeHours": { "type": "number", "description": "Overtime duration in hours" },
+        "rateMultiplier": { "type": "number", "description": "1.5 for normal days, 2.0 for weekends/holidays" },
+        "reason": { "type": "string", "description": "Operational justification" },
+        "status": { "type": "string", "description": "Pending, Approved, Rejected" }
+      }
+    },
+    "configuration": {
+      "fields": {
+        "id": { "type": "string", "description": "Config identifier" },
+        "companyName": { "type": "string", "description": "Ethiopian Reinsurance S.C." },
+        "companyShortName": { "type": "string", "description": "EthioRe" },
+        "tin": { "type": "string", "description": "Tax Identification Number" },
+        "address": { "type": "string", "description": "Office address" },
+        "workingDays": { "type": "string", "description": "Weekly working days" },
+        "standardHoursPerDay": { "type": "number", "description": "Daily normal hours" }
+      }
+    },
+    "auditLogs": {
+      "fields": {
+        "id": { "type": "string", "description": "Audit log ID" },
+        "timestamp": { "type": "string", "description": "ISO timestamp" },
+        "performedBy": { "type": "string", "description": "User name / role" },
+        "action": { "type": "string", "description": "Action performed" },
+        "module": { "type": "string", "description": "Target module" },
+        "details": { "type": "string", "description": "Detailed description" }
+      }
+    }
+  }
+}

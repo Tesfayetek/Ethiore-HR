@@ -1,0 +1,164 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Primary administrators
+    function isSuperAdmin() {
+      return isSignedIn() &&
+        (
+          request.auth.uid == "CgUrSSLK06NZqZK4BPIvB3Q4IDIF2" ||
+          request.auth.token.email == "arabsafashion@gmail.com" ||
+          request.auth.token.email == "contactesfaye@gmail.com" ||
+          request.auth.token.email == "sebleworksisay01@gmail.com" ||
+          request.auth.token.email == "admin@ethiopianre.com"
+        );
+    }
+
+    function hasUserDoc() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function getUserDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    // Administrator role
+    function isAdmin() {
+      return isSuperAdmin() ||
+        (hasUserDoc() && getUserDoc().role == "Administrator");
+    }
+
+    // HR Admin role (with safe migration compatibility)
+    function isHRAdmin() {
+      return isAdmin() ||
+        (hasUserDoc() && (getUserDoc().role == "HR Admin" || getUserDoc().role == "HR Officer"));
+    }
+
+    // Employee role
+    function isEmployee() {
+      return isSignedIn() &&
+        hasUserDoc() &&
+        getUserDoc().role == "Employee";
+    }
+
+    // Health / connection test documents
+    match /system_test/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /test/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isAdmin() || (isSignedIn() && request.auth.uid == userId);
+      allow delete: if isAdmin();
+    }
+
+    // Employee Account Links
+    match /employeeAccountLinks/{linkId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() || (isSignedIn() && request.auth.uid == linkId);
+      allow delete: if isAdmin();
+    }
+
+    // Departments
+    match /departments/{departmentId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin() || isHRAdmin();
+    }
+
+    // Positions
+    match /positions/{positionId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin() || isHRAdmin();
+    }
+
+    // Leave types
+    match /leaveTypes/{typeId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin() || isHRAdmin();
+    }
+
+    // Employees
+    match /employees/{employeeId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() || isHRAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Attendance
+    match /attendance/{attendanceId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() || isHRAdmin() || isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // Leaves
+    match /leaves/{leaveId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() || isHRAdmin() || isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /leave/{leaveId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() || isHRAdmin() || isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // Overtime
+    match /overtime/{overtimeId} {
+      allow read: if isSignedIn();
+      allow create, update: if isAdmin() || isHRAdmin() || isSignedIn();
+      allow delete: if isAdmin();
+    }
+
+    // Payroll
+    match /payroll/{payrollId} {
+      allow read: if isAdmin() || isHRAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Company settings & configuration
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /configuration/{configId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Audit logs
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // Default: deny everything else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

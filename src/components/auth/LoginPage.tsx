@@ -186,14 +186,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await storageService.checkEmailVerified();
+      const res = await storageService.checkEmailVerified(pendingUser?.id);
       if (res.verified) {
         setSuccessMessage(res.message);
-        const curr = storageService.getCurrentUser();
+        const curr = storageService.getAuthenticatedUser();
         if (curr) {
           setTimeout(() => {
             onLoginSuccess(curr);
-          }, 800);
+          }, 600);
         }
       } else {
         setErrorMessage(res.message);
@@ -227,11 +227,11 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   const handleSimulateVerification = () => {
     storageService.simulateVerifyEmail(pendingUser?.id);
     setSuccessMessage('Email verified via sandbox mode. Accessing Ethiopian Reinsurance self-service portal...');
-    const curr = storageService.getCurrentUser();
+    const curr = storageService.getAuthenticatedUser();
     if (curr) {
       setTimeout(() => {
         onLoginSuccess(curr);
-      }, 700);
+      }, 500);
     }
   };
 

@@ -171,18 +171,39 @@ export const storageService = {
     }
     const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
     if (!currentId) {
-      return true; // Default authorized session on initial visit
+      return false; // Crucial: Require explicit login. No default authorized session on initial visit.
     }
     const users = this.getUsers();
-    return users.some((u) => u.id === currentId);
+    const user = users.find((u) => u.id === currentId);
+    if (!user) {
+      return false;
+    }
+    if (user.status && user.status !== 'Active') {
+      return false;
+    }
+    // Employees must be email-verified before accessing protected pages
+    if (user.role === 'Employee' && !user.isEmailVerified) {
+      return false;
+    }
+    return true;
   },
 
-  // Get authenticated user or null if logged out
+  // Get authenticated user or null if logged out / unauthenticated
   getAuthenticatedUser(): User | null {
     if (!this.isAuthenticated()) {
       return null;
     }
-    return this.getCurrentUser();
+    const currentId = localStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    if (!currentId) return null;
+    const users = this.getUsers();
+    const user = users.find((u) => u.id === currentId);
+    if (!user) return null;
+    if (user.status && user.status !== 'Active') return null;
+    if (user.role === 'Employee' && !user.isEmailVerified) return null;
+    if ((user.role as string) === 'HR Officer') {
+      user.role = 'HR Admin';
+    }
+    return user;
   },
 
   setCurrentUser(userId: string): void {
@@ -538,13 +559,21 @@ export const storageService = {
       setStorageItem(STORAGE_KEYS.USERS, users);
     }
 
-    this.setCurrentUser(user.id);
-
     const needsEmailVerification = user.role === 'Employee' && !user.isEmailVerified;
+
+    if (!needsEmailVerification) {
+      this.setCurrentUser(user.id);
+    } else {
+      // Unverified employee: prevent session from being active
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+      localStorage.setItem('ethiore_hrms_logged_out', 'true');
+    }
 
     return {
       success: true,
-      message: 'Login successful.',
+      message: needsEmailVerification
+        ? 'Please verify your corporate email address to access your employee portal.'
+        : 'Login successful.',
       user,
       needsEmailVerification,
     };
@@ -573,18 +602,19 @@ export const storageService = {
   },
 
   // Check Email Verification Status with Firebase Auth
-  async checkEmailVerified(): Promise<{ verified: boolean; message: string }> {
+  async checkEmailVerified(userId?: string): Promise<{ verified: boolean; message: string }> {
     try {
       if (auth.currentUser) {
         await reload(auth.currentUser);
         if (auth.currentUser.emailVerified) {
           const users = this.getUsers();
           const target = users.find(
-            (u) => u.email.toLowerCase() === auth.currentUser?.email?.toLowerCase()
+            (u) => u.email.toLowerCase() === auth.currentUser?.email?.toLowerCase() || (userId && u.id === userId)
           );
           if (target) {
             target.isEmailVerified = true;
             setStorageItem(STORAGE_KEYS.USERS, users);
+            this.setCurrentUser(target.id);
             try {
               await setDoc(doc(db, 'users', target.id), { isEmailVerified: true }, { merge: true });
             } catch (fsErr) {
@@ -597,9 +627,18 @@ export const storageService = {
         return { verified: false, message: 'Email not yet verified. Please click the verification link in your inbox.' };
       }
 
-      // Check current user in storage
-      const curr = this.getCurrentUser();
-      if (curr.isEmailVerified) {
+      // Check specific user in storage if offline or local directory
+      if (userId) {
+        const users = this.getUsers();
+        const target = users.find((u) => u.id === userId);
+        if (target && target.isEmailVerified) {
+          this.setCurrentUser(target.id);
+          return { verified: true, message: 'Email verified successfully!' };
+        }
+      }
+
+      const curr = this.getAuthenticatedUser();
+      if (curr && curr.isEmailVerified) {
         return { verified: true, message: 'Email is verified.' };
       }
       return { verified: false, message: 'Verification link pending in email.' };
@@ -996,9 +1035,9 @@ export const storageService = {
 
   // Central backend authorization verification
   verifyAdministrator(user?: User): { authorized: boolean; verifiedAdmin?: User; message: string } {
-    const actingUser = user || this.getCurrentUser();
+    const actingUser = user || this.getAuthenticatedUser();
     if (!actingUser) {
-      return { authorized: false, message: 'Unauthorized: No active user session identified.' };
+      return { authorized: false, message: 'Unauthorized: Authentication required. No active session identified.' };
     }
     const users = this.getUsers();
     const verified = users.find((u) => u.id === actingUser.id && u.role === 'Administrator');
@@ -1020,9 +1059,9 @@ export const storageService = {
 
   // Central HR Admin or Administrator authorization verification
   verifyHRAdminOrAdmin(user?: User): { authorized: boolean; verifiedUser?: User; message: string } {
-    const actingUser = user || this.getCurrentUser();
+    const actingUser = user || this.getAuthenticatedUser();
     if (!actingUser) {
-      return { authorized: false, message: 'Unauthorized: No active user session identified.' };
+      return { authorized: false, message: 'Unauthorized: Authentication required. No active session identified.' };
     }
     const users = this.getUsers();
     const verified = users.find(
@@ -2903,7 +2942,8 @@ export const storageService = {
     setStorageItem(STORAGE_KEYS.EMPLOYEE_ACCOUNT_LINKS, initialEmployeeAccountLinks);
     setStorageItem(STORAGE_KEYS.NOTIFICATIONS, initialNotifications);
     setStorageItem(STORAGE_KEYS.AUDIT_LOGS, initialAuditLogs);
-    setStorageItem(STORAGE_KEYS.CURRENT_USER_ID, initialUsers[0].id);
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+    localStorage.setItem('ethiore_hrms_logged_out', 'true');
     window.dispatchEvent(new Event('ethiore_storage_update'));
     window.dispatchEvent(new Event('ethiore_user_change'));
   },

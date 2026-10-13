@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User, UserRole } from './types';
 import { storageService } from './services/storage';
 import { auth, onAuthStateChanged } from './services/firebase';
@@ -12,15 +12,105 @@ import { ConfigurationView } from './components/configuration/ConfigurationView'
 import { ReportsView } from './components/reports/ReportsView';
 import { EmployeePortalView } from './components/employee-portal/EmployeePortalView';
 import { LoginPage } from './components/auth/LoginPage';
+import { EthioReLogo } from './components/common/EthioReLogo';
 import { Shield } from 'lucide-react';
 
-export default function App() {
-  const [currentUser, setCurrentUser] = useState<User | null>(() => storageService.getAuthenticatedUser());
-  const [currentNav, setCurrentNav] = useState<MainNavId>(() =>
-    currentUser?.role === 'Employee' ? 'my_portal' : 'dashboard'
+/**
+ * Parses the current route from window.location.hash or window.location.pathname.
+ */
+function parseCurrentRoute(): { rawRoute: string; navId: MainNavId | 'login' | 'unknown'; subTab?: string } {
+  // Check hash first (e.g. #/dashboard, #/employees, #/portal, #/login)
+  let path = window.location.hash.replace(/^#\/?/, '').trim();
+
+  // If no hash, inspect pathname
+  if (!path) {
+    const rawPath = window.location.pathname.replace(/^\//, '').trim();
+    if (rawPath && rawPath !== 'index.html') {
+      path = rawPath;
+    }
+  }
+
+  const [routePart, queryString] = path.split('?');
+  const params = new URLSearchParams(queryString || '');
+  const subTab = params.get('tab') || undefined;
+  const cleanRoute = (routePart || '').toLowerCase();
+
+  switch (cleanRoute) {
+    case 'login':
+    case 'signin':
+    case 'auth':
+      return { rawRoute: 'login', navId: 'login', subTab };
+    case 'dashboard':
+    case 'home':
+      return { rawRoute: 'dashboard', navId: 'dashboard', subTab };
+    case 'employees':
+    case 'staff':
+      return { rawRoute: 'employees', navId: 'employees', subTab };
+    case 'leave':
+    case 'leaves':
+      return { rawRoute: 'leave', navId: 'leave', subTab };
+    case 'attendance':
+    case 'timeclock':
+      return { rawRoute: 'attendance', navId: 'attendance', subTab };
+    case 'reports':
+    case 'audits':
+      return { rawRoute: 'reports', navId: 'reports', subTab };
+    case 'configuration':
+    case 'settings':
+      return { rawRoute: 'configuration', navId: 'configuration', subTab };
+    case 'portal':
+    case 'my_portal':
+    case 'self-service':
+      return { rawRoute: 'portal', navId: 'my_portal', subTab };
+    default:
+      return { rawRoute: cleanRoute, navId: 'unknown', subTab };
+  }
+}
+
+/**
+ * Corporate branded loading screen to prevent protected content flashing
+ * while checking session & authentication status.
+ */
+function AuthLoadingScreen() {
+  return (
+    <div className="min-h-screen bg-[#082836] flex flex-col items-center justify-center p-6 select-none font-sans">
+      <div className="w-full max-w-sm flex flex-col items-center text-center space-y-6 animate-in fade-in duration-300">
+        <EthioReLogo size="lg" variant="full" theme="dark" />
+
+        <div className="relative flex items-center justify-center py-3">
+          <div className="w-12 h-12 rounded-full border-3 border-[#CCA352]/20 border-t-[#CCA352] animate-spin" />
+          <div className="absolute w-5 h-5 rounded-full bg-[#0E3D52] flex items-center justify-center shadow-inner">
+            <div className="w-2 h-2 rounded-full bg-[#E2BE6C] animate-pulse" />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <h2 className="text-sm font-semibold text-white tracking-wide">
+            Verifying Enterprise Session
+          </h2>
+          <p className="text-xs text-slate-400">
+            Checking authentication and security policies...
+          </p>
+        </div>
+
+        <div className="pt-4 border-t border-white/10 w-full text-[11px] text-slate-500 font-mono tracking-tight">
+          Ethiopian Reinsurance S.C. HRMS
+        </div>
+      </div>
+    </div>
   );
+}
+
+export default function App() {
+  // Authentication checking state — prevents any protected content from flashing
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+
+  // Authenticated user state (strictly null for unauthenticated sessions)
+  const [currentUser, setCurrentUser] = useState<User | null>(() => storageService.getAuthenticatedUser());
+
+  // Active navigation module
+  const [currentNav, setCurrentNav] = useState<MainNavId>('dashboard');
   const [activeSubTab, setActiveSubTab] = useState<string | undefined>(undefined);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Quick modals state triggered from dashboard
   const [openAddEmployee, setOpenAddEmployee] = useState(false);
@@ -33,14 +123,178 @@ export default function App() {
     pendingOvertime: storageService.getOvertimeRecords().filter((o) => o.status === 'Pending').length,
   }));
 
-  const updateCounts = () => {
+  const updateCounts = useCallback(() => {
     setCounts({
       totalEmployees: storageService.getEmployees().length,
       totalLeaves: storageService.getLeaveRecords().length,
       pendingOvertime: storageService.getOvertimeRecords().filter((o) => o.status === 'Pending').length,
     });
+  }, []);
+
+  /**
+   * Enforces role-based route protection and synchronizes browser URL.
+   */
+  const enforceRouteAndUrl = useCallback(
+    (user: User | null, targetNav?: MainNavId, targetSubTab?: string, replaceUrl = false) => {
+      // SCENARIO 1: Unauthenticated user — require login for ALL protected pages
+      if (!user) {
+        if (window.location.hash !== '#/login') {
+          window.history.replaceState({ authenticated: false, route: 'login' }, '', '#/login');
+        }
+        return;
+      }
+
+      // SCENARIO 2: Authenticated user — enforce role permissions
+      let resolvedNav: MainNavId = targetNav || 'dashboard';
+
+      if (user.role === 'Employee') {
+        // Employees are strictly restricted to My Staff Portal
+        resolvedNav = 'my_portal';
+      } else if (user.role === 'HR Admin') {
+        // HR Admin cannot access Configuration Settings
+        if (resolvedNav === 'configuration') {
+          resolvedNav = 'dashboard';
+        }
+      }
+
+      setCurrentNav(resolvedNav);
+      setActiveSubTab(targetSubTab);
+
+      // Build target hash
+      const hashPath = resolvedNav === 'my_portal' ? 'portal' : resolvedNav;
+      const targetHash = targetSubTab ? `#/${hashPath}?tab=${targetSubTab}` : `#/${hashPath}`;
+
+      if (window.location.hash !== targetHash) {
+        if (replaceUrl) {
+          window.history.replaceState({ authenticated: true, nav: resolvedNav }, '', targetHash);
+        } else {
+          window.history.pushState({ authenticated: true, nav: resolvedNav }, '', targetHash);
+        }
+      }
+    },
+    []
+  );
+
+  // Navigation handler invoked by Sidebar, Dashboard shortcuts, etc.
+  const handleNavigate = useCallback(
+    (nav: MainNavId, subTab?: string) => {
+      if (!currentUser) {
+        enforceRouteAndUrl(null);
+        return;
+      }
+      enforceRouteAndUrl(currentUser, nav, subTab, false);
+    },
+    [currentUser, enforceRouteAndUrl]
+  );
+
+  // Sign out handler: signs out Firebase session, clears state, and redirects to Login page
+  const handleSignOut = async () => {
+    await storageService.logoutUser();
+    setCurrentUser(null);
+    setActiveSubTab(undefined);
+    setOpenAddEmployee(false);
+    setOpenAddLeave(false);
+
+    // Prevent back-button access to protected pages
+    window.history.replaceState({ authenticated: false, route: 'login' }, '', '#/login');
   };
 
+  // Initial authentication check & URL route resolution on app load
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkInitialAuth = async () => {
+      const activeLocalUser = storageService.getAuthenticatedUser();
+      const routeInfo = parseCurrentRoute();
+
+      // Listen to Firebase authentication state
+      const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
+        if (!isMounted) return;
+
+        if (fbUser) {
+          const users = storageService.getUsers();
+          const matchedUser = users.find(
+            (u) => u.email.toLowerCase() === fbUser.email?.toLowerCase()
+          );
+
+          if (matchedUser && matchedUser.status === 'Active') {
+            // Check employee email verification rule
+            if (matchedUser.role === 'Employee' && !fbUser.emailVerified && !matchedUser.isEmailVerified) {
+              await storageService.logoutUser();
+              setCurrentUser(null);
+              enforceRouteAndUrl(null);
+            } else {
+              if (storageService.getAuthenticatedUser()?.id !== matchedUser.id) {
+                storageService.setCurrentUser(matchedUser.id);
+              }
+              setCurrentUser(matchedUser);
+
+              // Determine destination: honor direct URL if permitted, else role default
+              let destNav: MainNavId = matchedUser.role === 'Employee' ? 'my_portal' : 'dashboard';
+              if (routeInfo.navId !== 'login' && routeInfo.navId !== 'unknown') {
+                destNav = routeInfo.navId as MainNavId;
+              }
+              enforceRouteAndUrl(matchedUser, destNav, routeInfo.subTab, true);
+
+              // Background Firestore sync for authenticated user
+              storageService.syncWithFirestore().then(updateCounts).catch(() => {});
+            }
+          } else {
+            // Not in company directory or deactivated
+            await storageService.logoutUser();
+            setCurrentUser(null);
+            enforceRouteAndUrl(null);
+          }
+        } else {
+          // No active Firebase user
+          if (activeLocalUser) {
+            setCurrentUser(activeLocalUser);
+            let destNav: MainNavId = activeLocalUser.role === 'Employee' ? 'my_portal' : 'dashboard';
+            if (routeInfo.navId !== 'login' && routeInfo.navId !== 'unknown') {
+              destNav = routeInfo.navId as MainNavId;
+            }
+            enforceRouteAndUrl(activeLocalUser, destNav, routeInfo.subTab, true);
+          } else {
+            setCurrentUser(null);
+            enforceRouteAndUrl(null);
+          }
+        }
+
+        setIsAuthChecking(false);
+      });
+
+      // Failsafe timeout to prevent prolonged spinner on slow connections
+      const timer = setTimeout(() => {
+        if (isMounted && isAuthChecking) {
+          const fallbackUser = storageService.getAuthenticatedUser();
+          setCurrentUser(fallbackUser);
+          if (fallbackUser) {
+            let destNav: MainNavId = fallbackUser.role === 'Employee' ? 'my_portal' : 'dashboard';
+            if (routeInfo.navId !== 'login' && routeInfo.navId !== 'unknown') {
+              destNav = routeInfo.navId as MainNavId;
+            }
+            enforceRouteAndUrl(fallbackUser, destNav, routeInfo.subTab, true);
+          } else {
+            enforceRouteAndUrl(null);
+          }
+          setIsAuthChecking(false);
+        }
+      }, 600);
+
+      return () => {
+        clearTimeout(timer);
+        unsubscribeAuth();
+      };
+    };
+
+    checkInitialAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [enforceRouteAndUrl, updateCounts]);
+
+  // Handle URL change, browser Back / Forward buttons, and storage synchronization
   useEffect(() => {
     const handleStorageUpdate = () => {
       updateCounts();
@@ -50,75 +304,48 @@ export default function App() {
       const updated = storageService.getAuthenticatedUser();
       setCurrentUser(updated);
       if (updated) {
-        if (updated.role === 'Employee') {
-          setCurrentNav('my_portal');
-        } else if (currentNav === 'my_portal') {
-          setCurrentNav('dashboard');
-        }
+        enforceRouteAndUrl(updated, currentNav, activeSubTab, true);
+      } else {
+        enforceRouteAndUrl(null);
       }
     };
 
+    // Prevent Back-button access to protected pages when unauthenticated
     const handlePopState = () => {
-      if (!storageService.isAuthenticated()) {
+      const authUser = storageService.getAuthenticatedUser();
+      if (!authUser) {
         setCurrentUser(null);
+        if (window.location.hash !== '#/login') {
+          window.history.replaceState({ authenticated: false, route: 'login' }, '', '#/login');
+        }
+        return;
+      }
+
+      const routeInfo = parseCurrentRoute();
+      if (routeInfo.navId === 'login') {
+        // Authenticated user navigating back to login -> redirect to their role home
+        const dest: MainNavId = authUser.role === 'Employee' ? 'my_portal' : 'dashboard';
+        enforceRouteAndUrl(authUser, dest, undefined, true);
+      } else if (routeInfo.navId !== 'unknown') {
+        enforceRouteAndUrl(authUser, routeInfo.navId as MainNavId, routeInfo.subTab, true);
+      } else {
+        const dest: MainNavId = authUser.role === 'Employee' ? 'my_portal' : 'dashboard';
+        enforceRouteAndUrl(authUser, dest, undefined, true);
       }
     };
 
     window.addEventListener('ethiore_storage_update', handleStorageUpdate);
     window.addEventListener('ethiore_user_change', handleUserChange);
     window.addEventListener('popstate', handlePopState);
-
-    // Background synchronization with Firebase backend (hrms-d9d43) when authenticated
-    const unsubscribeAuth = onAuthStateChanged(auth, (fbUser) => {
-      if (fbUser) {
-        storageService.syncWithFirestore().then(() => {
-          updateCounts();
-        });
-      }
-    });
-
-    if (auth.currentUser) {
-      storageService.syncWithFirestore().then(() => {
-        updateCounts();
-      });
-    }
+    window.addEventListener('hashchange', handlePopState);
 
     return () => {
-      unsubscribeAuth();
       window.removeEventListener('ethiore_storage_update', handleStorageUpdate);
       window.removeEventListener('ethiore_user_change', handleUserChange);
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
     };
-  }, [currentNav]);
-
-  // Sign out handler: signs out Firebase session, clears state, and redirects to Login page
-  const handleSignOut = async () => {
-    await storageService.logoutUser();
-    setCurrentUser(null);
-    setActiveSubTab(undefined);
-    setOpenAddEmployee(false);
-    setOpenAddLeave(false);
-    setIsLoginModalOpen(false);
-    // Prevent back-button access to protected pages
-    window.history.replaceState({ authenticated: false }, '', window.location.pathname);
-  };
-
-  const handleNavigate = (nav: MainNavId, subTab?: string) => {
-    if (!currentUser) return;
-    // Permission boundary check
-    if (currentUser.role === 'Employee') {
-      setCurrentNav('my_portal');
-      return;
-    }
-
-    if (nav === 'configuration' && currentUser.role !== 'Administrator') {
-      // HR Admin cannot access configuration
-      return;
-    }
-
-    setCurrentNav(nav);
-    setActiveSubTab(subTab);
-  };
+  }, [currentNav, activeSubTab, enforceRouteAndUrl, updateCounts]);
 
   const getModuleTitle = () => {
     if (!currentUser) return 'Ethiopian Reinsurance HRMS';
@@ -143,26 +370,29 @@ export default function App() {
     }
   };
 
-  // If user is not authenticated or has signed out, render corporate Login page
+  // 1. Loading screen while checking authentication state to prevent any protected content from flashing
+  if (isAuthChecking) {
+    return <AuthLoadingScreen />;
+  }
+
+  // 2. Unauthenticated state — render ONLY the corporate Login page as default entry point
   if (!currentUser) {
     return (
       <LoginPage
         onLoginSuccess={(user) => {
           setCurrentUser(user);
-          if (user.role === 'Employee') {
-            setCurrentNav('my_portal');
-          } else {
-            setCurrentNav('dashboard');
-          }
-          window.history.pushState({ authenticated: true }, '', window.location.pathname);
+          // Redirect to appropriate dashboard according to role and permissions
+          const dest: MainNavId = user.role === 'Employee' ? 'my_portal' : 'dashboard';
+          enforceRouteAndUrl(user, dest, undefined, false);
         }}
       />
     );
   }
 
+  // 3. Authenticated state — protected modules & layout
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-800 antialiased">
-      {/* Top Application Header with User Info and Sign Out (No role selector) */}
+      {/* Top Application Header with User Info and Sign Out */}
       <Header
         currentUser={currentUser}
         activeModuleTitle={getModuleTitle()}
@@ -187,7 +417,7 @@ export default function App() {
               <EmployeePortalView currentUser={currentUser} />
             )}
 
-            {/* MANAGEMENT VIEWS (Only for Administrator & HR Officer) */}
+            {/* MANAGEMENT VIEWS (Only for Administrator & HR Admin) */}
             {currentUser.role !== 'Employee' && (
               <>
                 {currentNav === 'dashboard' && (
@@ -195,11 +425,11 @@ export default function App() {
                     userRole={currentUser.role}
                     onNavigate={(module, subTab) => handleNavigate(module as MainNavId, subTab)}
                     onOpenNewLeaveModal={() => {
-                      setCurrentNav('leave');
+                      handleNavigate('leave', 'records');
                       setOpenAddLeave(true);
                     }}
                     onOpenNewEmployeeModal={() => {
-                      setCurrentNav('employees');
+                      handleNavigate('employees');
                       setOpenAddEmployee(true);
                     }}
                   />
@@ -229,7 +459,7 @@ export default function App() {
                   />
                 )}
 
-                {/* REPORTS MODULE (Only Administrator and HR Officer) */}
+                {/* REPORTS MODULE (Administrator and HR Admin) */}
                 {currentNav === 'reports' && (
                   <ReportsView userRole={currentUser.role} />
                 )}
@@ -258,23 +488,6 @@ export default function App() {
           </div>
         </main>
       </div>
-
-      {/* Corporate Login & Registration Modal */}
-      {isLoginModalOpen && (
-        <LoginPage
-          isModal
-          onLoginSuccess={(user) => {
-            setCurrentUser(user);
-            setIsLoginModalOpen(false);
-            if (user.role === 'Employee') {
-              setCurrentNav('my_portal');
-            } else {
-              setCurrentNav('dashboard');
-            }
-          }}
-          onCancel={() => setIsLoginModalOpen(false)}
-        />
-      )}
     </div>
   );
 }

@@ -44,13 +44,22 @@ import { ethioReTheme } from '../../theme/colors';
 
 interface EmployeePortalViewProps {
   currentUser: User;
+  initialSubTab?: string;
   onNavigateTab?: (tab: string) => void;
 }
 
 export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
   currentUser,
+  initialSubTab = 'overview',
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'profile' | 'leave' | 'attendance' | 'notifications'>('overview');
+  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'profile' | 'leave' | 'attendance' | 'notifications'>((initialSubTab as any) || 'overview');
+
+  useEffect(() => {
+    if (initialSubTab && ['overview', 'profile', 'leave', 'attendance', 'notifications'].includes(initialSubTab)) {
+      setActiveSubTab(initialSubTab as any);
+    }
+  }, [initialSubTab]);
+
   const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
   const [clockActionMessage, setClockActionMessage] = useState<string | null>(null);
   const [storageTick, setStorageTick] = useState(0);

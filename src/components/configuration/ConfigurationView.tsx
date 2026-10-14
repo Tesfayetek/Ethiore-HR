@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import {
   Building,
   Briefcase,
@@ -49,6 +49,12 @@ export const ConfigurationView = ({
   const [activeTab, setActiveTab] = useState<
     'company' | 'departments' | 'positions' | 'leavetypes' | 'holidays' | 'shifts' | 'users' | 'audit' | 'cloud'
   >((initialSubTab as any) || 'company');
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveTab(initialSubTab as any);
+    }
+  }, [initialSubTab]);
 
   const isAdmin = userRole === 'Administrator';
 

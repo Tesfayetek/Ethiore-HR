@@ -45,6 +45,12 @@ export const AttendanceView = ({
     'register' | 'calendar' | 'exceptions' | 'corrections' | 'checkin' | 'summary' | 'overtime' | 'reports'
   >((initialSubTab as any) || 'register');
 
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveTab(initialSubTab as any);
+    }
+  }, [initialSubTab]);
+
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(() =>
     storageService.getAttendanceRecords()
   );

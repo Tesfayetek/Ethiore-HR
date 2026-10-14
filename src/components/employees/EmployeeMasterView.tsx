@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   Plus,
@@ -32,12 +32,14 @@ interface EmployeeMasterViewProps {
   userRole: UserRole;
   isAddModalOpenInitially?: boolean;
   onCloseAddModal?: () => void;
+  initialSubTab?: string;
 }
 
 export const EmployeeMasterView = ({
   userRole,
   isAddModalOpenInitially = false,
   onCloseAddModal,
+  initialSubTab,
 }: EmployeeMasterViewProps) => {
   const [employees, setEmployees] = useState<Employee[]>(() => storageService.getEmployees());
   const [searchQuery, setSearchQuery] = useState('');
@@ -51,6 +53,20 @@ export const EmployeeMasterView = ({
   const [employeeToView, setEmployeeToView] = useState<Employee | null>(null);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [alertMessage, setAlertMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  useEffect(() => {
+    if (initialSubTab === 'import') {
+      setIsImportOpen(true);
+      setIsAddEditOpen(false);
+    } else if (initialSubTab === 'new') {
+      setEmployeeToEdit(null);
+      setIsAddEditOpen(true);
+      setIsImportOpen(false);
+    } else if (initialSubTab === 'directory') {
+      setIsImportOpen(false);
+      setIsAddEditOpen(false);
+    }
+  }, [initialSubTab]);
 
   // Deletion modal state
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);

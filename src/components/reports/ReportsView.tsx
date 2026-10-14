@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   FileText,
   Printer,
@@ -70,6 +70,12 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
 
   // State
   const [selectedReport, setSelectedReport] = useState<ReportId>(initialReportId);
+
+  useEffect(() => {
+    if (initialReportId) {
+      setSelectedReport(initialReportId);
+    }
+  }, [initialReportId]);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('ALL');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('ALL');
   const [dateFrom, setDateFrom] = useState<string>('2026-09-01');

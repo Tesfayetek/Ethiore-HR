@@ -111,6 +111,7 @@ export default function App() {
   // Active navigation module
   const [currentNav, setCurrentNav] = useState<MainNavId>('dashboard');
   const [activeSubTab, setActiveSubTab] = useState<string | undefined>(undefined);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Quick modals state triggered from dashboard
   const [openAddEmployee, setOpenAddEmployee] = useState(false);
@@ -192,6 +193,7 @@ export default function App() {
     await storageService.logoutUser();
     setCurrentUser(null);
     setActiveSubTab(undefined);
+    setIsMobileSidebarOpen(false);
     setOpenAddEmployee(false);
     setOpenAddLeave(false);
 
@@ -392,21 +394,26 @@ export default function App() {
   // 3. Authenticated state — protected modules & layout
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans text-slate-800 antialiased">
-      {/* Top Application Header with User Info and Sign Out */}
+      {/* Top Application Header with User Info, Mobile Toggle and Sign Out */}
       <Header
         currentUser={currentUser}
         activeModuleTitle={getModuleTitle()}
         onLogout={handleSignOut}
+        isMobileSidebarOpen={isMobileSidebarOpen}
+        onToggleMobileSidebar={() => setIsMobileSidebarOpen((prev) => !prev)}
       />
 
       {/* Main Layout Body */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Navigation Sidebar */}
+        {/* Navigation Accordion Sidebar */}
         <Sidebar
           currentNav={currentNav}
-          onNavigate={(nav) => handleNavigate(nav)}
+          activeSubTab={activeSubTab}
+          onNavigate={(nav, subTab) => handleNavigate(nav, subTab)}
           userRole={currentUser.role}
           counts={counts}
+          isOpenMobile={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
 
         {/* Content Viewport */}
@@ -414,7 +421,7 @@ export default function App() {
           <div className="max-w-7xl mx-auto space-y-6">
             {/* EMPLOYEE PORTAL VIEW (For role === 'Employee') */}
             {(currentUser.role === 'Employee' || currentNav === 'my_portal') && (
-              <EmployeePortalView currentUser={currentUser} />
+              <EmployeePortalView currentUser={currentUser} initialSubTab={activeSubTab} />
             )}
 
             {/* MANAGEMENT VIEWS (Only for Administrator & HR Admin) */}
@@ -438,6 +445,7 @@ export default function App() {
                 {currentNav === 'employees' && (
                   <EmployeeMasterView
                     userRole={currentUser.role}
+                    initialSubTab={activeSubTab}
                     isAddModalOpenInitially={openAddEmployee}
                     onCloseAddModal={() => setOpenAddEmployee(false)}
                   />
@@ -461,7 +469,10 @@ export default function App() {
 
                 {/* REPORTS MODULE (Administrator and HR Admin) */}
                 {currentNav === 'reports' && (
-                  <ReportsView userRole={currentUser.role} />
+                  <ReportsView
+                    userRole={currentUser.role}
+                    initialReportId={(activeSubTab as any) || 'emp_directory'}
+                  />
                 )}
 
                 {/* CONFIGURATION MODULE (Strictly Administrator) */}

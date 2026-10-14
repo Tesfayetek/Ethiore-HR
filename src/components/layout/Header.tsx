@@ -4,6 +4,8 @@ import {
   Clock,
   RotateCcw,
   LogOut,
+  Menu,
+  X,
 } from 'lucide-react';
 import { User, UserRole } from '../../types';
 import { storageService } from '../../services/storage';
@@ -17,12 +19,16 @@ interface HeaderProps {
   onOpenLogin?: () => void;
   onOpenChangePassword?: () => void;
   onLogout?: () => void;
+  isMobileSidebarOpen?: boolean;
+  onToggleMobileSidebar?: () => void;
 }
 
 export const Header = ({
   currentUser,
   activeModuleTitle,
   onLogout,
+  isMobileSidebarOpen,
+  onToggleMobileSidebar,
 }: HeaderProps) => {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<string>('');
@@ -55,7 +61,21 @@ export const Header = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left: Organization Official Logo & Brand Identification */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            {onToggleMobileSidebar && (
+              <button
+                type="button"
+                onClick={onToggleMobileSidebar}
+                className="md:hidden p-1.5 -ml-1 rounded-lg text-slate-300 hover:text-white hover:bg-[#186382] focus:outline-hidden focus:ring-2 focus:ring-[#CCA352] transition-colors shrink-0 cursor-pointer"
+                aria-label={isMobileSidebarOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              >
+                {isMobileSidebarOpen ? (
+                  <X className="w-5 h-5 text-[#CCA352]" />
+                ) : (
+                  <Menu className="w-5 h-5 text-[#CCA352]" />
+                )}
+              </button>
+            )}
             <EthioReLogo size="md" variant="full" theme="dark" />
             <span className="hidden xl:inline-block px-2 py-0.5 text-[11px] font-semibold bg-[#CCA352]/20 text-[#E2BE6C] border border-[#CCA352]/40 rounded-full">
               HRMS Portal

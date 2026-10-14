@@ -18,6 +18,7 @@ import { Employee } from '../../types';
 import { storageService } from '../../services/storage';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
 import { ReportPrintFooter } from '../common/ReportPrintFooter';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 
 interface EmployeeDetailModalProps {
   employee: Employee | null;
@@ -57,17 +58,12 @@ export const EmployeeDetailModal = ({
         {/* Modal Header */}
         <div className="px-6 py-5 bg-[#186382] text-white flex items-center justify-between border-b-2 border-amber-500 no-print">
           <div className="flex items-center space-x-4">
-            {employee.photo ? (
-              <img
-                src={employee.photo}
-                alt={employee.fullName}
-                className="w-14 h-14 rounded-full object-cover border-2 border-amber-500 shadow-md"
-              />
-            ) : (
-              <div className="w-14 h-14 rounded-full bg-slate-800 text-amber-400 border-2 border-amber-500 flex items-center justify-center font-bold text-lg shadow-md">
-                {employee.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('')}
-              </div>
-            )}
+            <FacelessAvatar
+              src={employee.photo}
+              alt={employee.fullName}
+              size="lg"
+              className="border-2 border-amber-500 shadow-md"
+            />
             <div>
               <div className="flex items-center space-x-2">
                 <h2 className="text-lg font-bold text-white tracking-tight">{employee.fullName}</h2>
@@ -177,19 +173,13 @@ export const EmployeeDetailModal = ({
               {/* Profile Card with 120x120px photo and Official Leave Balance */}
               <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs flex flex-col sm:flex-row items-center sm:items-start gap-5">
                 {/* 120x120 px responsive photo display per Requirement #8 */}
-                <div className="w-[120px] h-[120px] rounded-xl overflow-hidden border-2 border-amber-500/60 bg-slate-100 shadow-xs shrink-0 flex items-center justify-center">
-                  {employee.photo ? (
-                    <img
-                      src={employee.photo}
-                      alt={employee.fullName}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-[#186382]/10 text-[#186382] flex flex-col items-center justify-center font-bold">
-                      <User className="w-10 h-10 mb-1 opacity-50" />
-                      <span className="text-xs">{employee.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('')}</span>
-                    </div>
-                  )}
+                <div className="w-[120px] h-[120px] rounded-full overflow-hidden border-2 border-amber-500/60 bg-slate-100 shadow-xs shrink-0 flex items-center justify-center">
+                  <FacelessAvatar
+                    src={employee.photo}
+                    alt={employee.fullName}
+                    size={120}
+                    className="w-full h-full"
+                  />
                 </div>
 
                 <div className="flex-1 space-y-3 w-full text-center sm:text-left">

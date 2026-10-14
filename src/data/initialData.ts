@@ -16,6 +16,7 @@ import {
   EmployeeAccountLink,
   EmployeeNotification,
 } from '../types';
+import { DEFAULT_FACELESS_AVATAR } from '../assets/defaultAvatar';
 
 export const initialCompanyInfo: CompanyInfo = {
   name: 'Ethiopian Reinsurance S.C.',
@@ -54,7 +55,7 @@ export const initialEmployees: Employee[] = [
     manager: 'Dawit Yohannes',
     phoneNumber: '+251 91 123 4567',
     emailAddress: 'employee@ethiopianre.com',
-    photo: '',
+    photo: DEFAULT_FACELESS_AVATAR,
     status: 'Active',
     leaveBalance: 18,
   },
@@ -199,6 +200,7 @@ export const initialUsers: User[] = [
     role: 'Administrator',
     createdAt: '2026-01-01T08:00:00Z',
     status: 'Active',
+    avatar: DEFAULT_FACELESS_AVATAR,
   },
   {
     id: 'usr-hr-admin',
@@ -207,6 +209,7 @@ export const initialUsers: User[] = [
     role: 'HR Admin',
     createdAt: '2026-01-01T08:00:00Z',
     status: 'Active',
+    avatar: DEFAULT_FACELESS_AVATAR,
   },
   {
     id: 'usr-employee-demo',
@@ -217,6 +220,7 @@ export const initialUsers: User[] = [
     status: 'Active',
     employeeId: 'EMP001',
     isEmailVerified: true,
+    avatar: DEFAULT_FACELESS_AVATAR,
   },
   {
     id: 'usr-admin-contactesfaye',
@@ -225,6 +229,7 @@ export const initialUsers: User[] = [
     role: 'Administrator',
     createdAt: '2026-01-01T08:00:00Z',
     status: 'Active',
+    avatar: DEFAULT_FACELESS_AVATAR,
   },
   {
     id: 'usr-admin-seblework',
@@ -233,6 +238,7 @@ export const initialUsers: User[] = [
     role: 'Administrator',
     createdAt: '2026-01-01T08:00:00Z',
     status: 'Active',
+    avatar: DEFAULT_FACELESS_AVATAR,
   },
   {
     id: 'usr-admin-arabsa',
@@ -241,6 +247,7 @@ export const initialUsers: User[] = [
     role: 'Administrator',
     createdAt: '2026-01-01T08:00:00Z',
     status: 'Active',
+    avatar: DEFAULT_FACELESS_AVATAR,
   },
 ];
 

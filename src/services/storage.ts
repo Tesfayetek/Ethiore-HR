@@ -36,6 +36,7 @@ import {
   initialEmployeeAccountLinks,
   initialNotifications,
 } from '../data/initialData';
+import { DEFAULT_FACELESS_AVATAR } from '../assets/defaultAvatar';
 import { AUTH_CONFIG } from '../config/authConfig';
 import {
   auth,
@@ -148,6 +149,51 @@ function setStorageItem<T>(key: string, value: T): void {
   } catch (error) {
     console.error(`Error writing ${key} to storage:`, error);
   }
+}
+
+// Ensure all existing employee records and users consistently use the corporate faceless avatar
+function migrateToFacelessAvatars(): void {
+  try {
+    const rawEmployees = localStorage.getItem(STORAGE_KEYS.EMPLOYEES);
+    if (rawEmployees) {
+      const employees: Employee[] = JSON.parse(rawEmployees);
+      let changed = false;
+      const updated = employees.map((emp) => {
+        // Consistently update profile picture to default faceless avatar while preserving all other fields
+        if (!emp.photo || emp.photo !== DEFAULT_FACELESS_AVATAR) {
+          changed = true;
+          return { ...emp, photo: DEFAULT_FACELESS_AVATAR };
+        }
+        return emp;
+      });
+      if (changed) {
+        localStorage.setItem(STORAGE_KEYS.EMPLOYEES, JSON.stringify(updated));
+      }
+    }
+
+    const rawUsers = localStorage.getItem(STORAGE_KEYS.USERS);
+    if (rawUsers) {
+      const users: User[] = JSON.parse(rawUsers);
+      let changed = false;
+      const updated = users.map((u) => {
+        if (!u.avatar || u.avatar !== DEFAULT_FACELESS_AVATAR) {
+          changed = true;
+          return { ...u, avatar: DEFAULT_FACELESS_AVATAR };
+        }
+        return u;
+      });
+      if (changed) {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(updated));
+      }
+    }
+  } catch (err) {
+    console.error('Notice: Faceless avatar migration check:', err);
+  }
+}
+
+// Run migration immediately on module load
+if (typeof window !== 'undefined' && window.localStorage) {
+  migrateToFacelessAvatars();
 }
 
 // Storage API
@@ -360,7 +406,7 @@ export const storageService = {
         manager: 'Executive Management',
         phoneNumber: phoneNumber?.trim() || '+251 91 000 0000',
         emailAddress: normalizedEmail,
-        photo: '',
+        photo: DEFAULT_FACELESS_AVATAR,
         status: 'Active',
       };
 
@@ -426,7 +472,7 @@ export const storageService = {
       role: 'Employee', // STRICTLY Employee
       employeeId: matchedEmployee.employeeId,
       createdAt: new Date().toISOString(),
-      avatar: matchedEmployee.photo || undefined,
+      avatar: DEFAULT_FACELESS_AVATAR,
       status: 'Active',
       isEmailVerified: false, // Requires email verification before self-service access
     };
@@ -1021,7 +1067,7 @@ export const storageService = {
       ...newUser,
       id: `usr-${Date.now()}`,
       createdAt: new Date().toISOString(),
-      avatar: newUser.avatar || undefined,
+      avatar: newUser.avatar || DEFAULT_FACELESS_AVATAR,
     };
     const updated = [...users, created];
     setStorageItem(STORAGE_KEYS.USERS, updated);
@@ -1714,7 +1760,13 @@ export const storageService = {
   // EMPLOYEE MASTER DATA (Shared Component)
   // ==========================================
   getEmployees(): Employee[] {
-    return getStorageItem<Employee[]>(STORAGE_KEYS.EMPLOYEES, initialEmployees);
+    const list = getStorageItem<Employee[]>(STORAGE_KEYS.EMPLOYEES, initialEmployees);
+    return list.map((e) => {
+      if (!e.photo) {
+        return { ...e, photo: DEFAULT_FACELESS_AVATAR };
+      }
+      return e;
+    });
   },
 
   getActiveEmployees(): Employee[] {
@@ -1794,6 +1846,7 @@ export const storageService = {
       savedEmployee = {
         ...empData,
         id: `emp-${Date.now()}`,
+        photo: empData.photo?.trim() || DEFAULT_FACELESS_AVATAR,
         leaveBalance: initialLeaveBal,
       };
       employees.push(savedEmployee);
@@ -2257,7 +2310,7 @@ export const storageService = {
           manager: row.manager?.trim() || 'Director',
           phoneNumber: (row.phone || row.phoneNumber)?.trim() || '+251 91 000 0000',
           emailAddress: rawEmail || `${cleanId.toLowerCase()}@ethiopianre.com`,
-          photo: row.photo?.trim() || '',
+          photo: row.photo?.trim() || DEFAULT_FACELESS_AVATAR,
           status:
             (row.employmentStatus || row.status)?.trim().toLowerCase() === 'inactive'
               ? 'Inactive'

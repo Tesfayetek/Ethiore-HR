@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Employee, LeaveType, LeaveBalance } from '../../types';
 import { storageService } from '../../services/storage';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 
 interface CreateLeaveModalProps {
   isOpen: boolean;
@@ -217,17 +218,12 @@ export const CreateLeaveModal: React.FC<CreateLeaveModalProps> = ({
           {/* Selected Employee Summary Card */}
           {selectedEmployee && (
             <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex items-center space-x-3">
-              {selectedEmployee.photo ? (
-                <img
-                  src={selectedEmployee.photo}
-                  alt={selectedEmployee.fullName}
-                  className="w-10 h-10 rounded-full object-cover border border-slate-300"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-[#186382] text-amber-300 font-bold text-xs flex items-center justify-center border border-slate-300 shrink-0">
-                  {selectedEmployee.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('')}
-                </div>
-              )}
+              <FacelessAvatar
+                src={selectedEmployee.photo}
+                alt={selectedEmployee.fullName}
+                size="md"
+                className="border border-slate-300"
+              />
               <div className="grow">
                 <div className="flex items-center space-x-2">
                   <span className="font-bold text-slate-900">

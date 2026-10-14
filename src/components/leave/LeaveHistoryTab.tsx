@@ -16,6 +16,7 @@ import { LeaveRecord, Employee } from '../../types';
 import { storageService } from '../../services/storage';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
 import { ReportPrintFooter } from '../common/ReportPrintFooter';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 
 interface LeaveHistoryTabProps {
   leaveRecords: LeaveRecord[];
@@ -143,17 +144,12 @@ export const LeaveHistoryTab: React.FC<LeaveHistoryTabProps> = ({
         <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
             <div className="flex items-center space-x-3.5">
-              {selectedEmployee.photo ? (
-                <img
-                  src={selectedEmployee.photo}
-                  alt={selectedEmployee.fullName}
-                  className="w-14 h-14 rounded-full object-cover border-2 border-amber-400 shadow-xs"
-                />
-              ) : (
-                <div className="w-14 h-14 rounded-full bg-[#186382] text-amber-300 font-bold text-base flex items-center justify-center border-2 border-amber-400 shadow-xs shrink-0">
-                  {selectedEmployee.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('')}
-                </div>
-              )}
+              <FacelessAvatar
+                src={selectedEmployee.photo}
+                alt={selectedEmployee.fullName}
+                size="lg"
+                className="border-2 border-amber-400 shadow-xs"
+              />
               <div>
                 <div className="flex items-center space-x-2">
                   <h3 className="text-base font-bold text-slate-900">

@@ -39,6 +39,7 @@ import {
 import { EthioReLogo } from '../common/EthioReLogo';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
 import { ReportPrintFooter } from '../common/ReportPrintFooter';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 import { ethioReTheme } from '../../theme/colors';
 
 interface EmployeePortalViewProps {
@@ -285,17 +286,12 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
       {/* Top Employee Welcome Banner */}
       <div className="bg-gradient-to-r from-[#0E3D52] via-[#0A2D3D] to-[#051C26] rounded-xl p-6 border-b-2 border-[#CCA352] text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
-          {employee?.photo || currentUser.avatar ? (
-            <img
-              src={employee?.photo || currentUser.avatar}
-              alt={employee?.fullName || currentUser.displayName}
-              className="w-16 h-16 rounded-full object-cover border-2 border-[#CCA352] shadow-sm shrink-0"
-            />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-[#186382] text-amber-300 font-bold text-lg flex items-center justify-center border-2 border-[#CCA352] shadow-sm shrink-0">
-              {(employee?.fullName || currentUser.displayName || 'EM').split(' ').map((n) => n[0]).slice(0, 2).join('')}
-            </div>
-          )}
+          <FacelessAvatar
+            src={employee?.photo || currentUser.avatar}
+            alt={employee?.fullName || currentUser.displayName}
+            size="xl"
+            className="border-2 border-[#CCA352] shadow-sm shrink-0"
+          />
           <div>
             <div className="flex items-center space-x-2">
               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#CCA352] text-[#051C26] uppercase tracking-wider">
@@ -620,17 +616,12 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
         <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
           <div className="p-6 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center space-x-4">
-              {employee.photo ? (
-                <img
-                  src={employee.photo}
-                  alt={employee.fullName}
-                  className="w-16 h-16 rounded-full object-cover border-2 border-[#CCA352] shrink-0"
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-[#186382]/10 text-[#186382] border-2 border-[#CCA352] flex items-center justify-center font-bold text-base shrink-0">
-                  {employee.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('')}
-                </div>
-              )}
+              <FacelessAvatar
+                src={employee?.photo || currentUser.avatar}
+                alt={employee.fullName}
+                size="xl"
+                className="border-2 border-[#CCA352] shrink-0"
+              />
               <div>
                 <h2 className="text-lg font-bold text-slate-900">{employee.fullName}</h2>
                 <p className="text-xs text-[#186382] font-semibold mt-0.5">

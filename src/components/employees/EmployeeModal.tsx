@@ -3,6 +3,7 @@ import { X, Save, AlertCircle, UserPlus } from 'lucide-react';
 import { Employee, Gender, EmploymentType, EmployeeStatus } from '../../types';
 import { storageService } from '../../services/storage';
 import { EmployeePhotoUpload } from './EmployeePhotoUpload';
+import { DEFAULT_FACELESS_AVATAR } from '../../assets/defaultAvatar';
 
 interface EmployeeModalProps {
   isOpen: boolean;
@@ -34,7 +35,7 @@ export const EmployeeModal = ({
     manager: '',
     phoneNumber: '+251 9',
     emailAddress: '',
-    photo: '',
+    photo: DEFAULT_FACELESS_AVATAR,
     photoStoragePath: '',
     status: 'Active' as EmployeeStatus,
     leaveBalance: 16,
@@ -57,7 +58,7 @@ export const EmployeeModal = ({
         manager: employeeToEdit.manager,
         phoneNumber: employeeToEdit.phoneNumber,
         emailAddress: employeeToEdit.emailAddress,
-        photo: employeeToEdit.photo || '',
+        photo: employeeToEdit.photo || DEFAULT_FACELESS_AVATAR,
         photoStoragePath: employeeToEdit.photoStoragePath || '',
         status: employeeToEdit.status,
         leaveBalance:
@@ -81,7 +82,7 @@ export const EmployeeModal = ({
         fullName: '',
         phoneNumber: '+251 91 ',
         emailAddress: '',
-        photo: '',
+        photo: DEFAULT_FACELESS_AVATAR,
         photoStoragePath: '',
         leaveBalance: 16,
       }));
@@ -371,7 +372,7 @@ export const EmployeeModal = ({
                 onPhotoRemoved={() => {
                   setFormData((prev) => ({
                     ...prev,
-                    photo: '',
+                    photo: DEFAULT_FACELESS_AVATAR,
                     photoStoragePath: '',
                   }));
                 }}

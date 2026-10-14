@@ -16,6 +16,7 @@ import { LeaveRecord } from '../../types';
 import { storageService } from '../../services/storage';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
 import { ReportPrintFooter } from '../common/ReportPrintFooter';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 
 interface LeaveCalendarTabProps {
   leaveRecords: LeaveRecord[];
@@ -310,17 +311,12 @@ export const LeaveCalendarTab: React.FC<LeaveCalendarTabProps> = ({
                         className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition-colors flex items-center justify-between"
                       >
                         <div className="flex items-center space-x-3">
-                          {emp?.photo ? (
-                            <img
-                              src={emp.photo}
-                              alt=""
-                              className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-[#186382] text-amber-300 font-bold text-xs flex items-center justify-center border border-slate-200 shrink-0">
-                              {rec.employeeName.split(' ').map((n) => n[0]).slice(0, 2).join('')}
-                            </div>
-                          )}
+                          <FacelessAvatar
+                            src={emp?.photo}
+                            alt={rec.employeeName}
+                            size="md"
+                            className="border border-slate-200"
+                          />
                           <div>
                             <div className="flex items-center space-x-2">
                               <span className="font-bold text-slate-900">

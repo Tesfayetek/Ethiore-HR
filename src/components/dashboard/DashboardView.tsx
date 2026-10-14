@@ -16,6 +16,7 @@ import { storageService } from '../../services/storage';
 import { EthioReLogo } from '../common/EthioReLogo';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
 import { ReportPrintFooter } from '../common/ReportPrintFooter';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 
 interface DashboardViewProps {
   userRole: UserRole;
@@ -272,17 +273,12 @@ export const DashboardView = ({
                 return (
                   <div key={record.id} className="p-4 hover:bg-slate-50/80 transition-colors flex items-center justify-between">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-slate-600 text-xs">
-                        {emp?.photo ? (
-                          <img
-                            src={emp.photo}
-                            alt={record.employeeName}
-                            className="w-10 h-10 rounded-full object-cover"
-                          />
-                        ) : (
-                          record.employeeName.charAt(0)
-                        )}
-                      </div>
+                      <FacelessAvatar
+                        src={emp?.photo}
+                        alt={record.employeeName}
+                        size="md"
+                        className="border border-slate-200"
+                      />
                       <div>
                         <div className="flex items-center space-x-2">
                           <span className="text-xs font-bold text-slate-900">{record.employeeName}</span>

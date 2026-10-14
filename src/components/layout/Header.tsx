@@ -8,6 +8,7 @@ import {
 import { User, UserRole } from '../../types';
 import { storageService } from '../../services/storage';
 import { EthioReLogo } from '../common/EthioReLogo';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 
 interface HeaderProps {
   currentUser: User;
@@ -78,13 +79,11 @@ export const Header = ({
 
             {/* Authenticated User Information (No role selection) */}
             <div className="flex items-center space-x-2.5 px-3 py-1.5 bg-[#082836]/90 rounded-lg border border-[#186382]/40 text-xs">
-              <div className="w-7 h-7 rounded-full bg-[#186382] border border-[#CCA352]/50 flex items-center justify-center text-[#E2BE6C] font-bold text-xs shrink-0 overflow-hidden shadow-2xs">
-                {userPhoto ? (
-                  <img src={userPhoto} alt={currentUser.displayName} className="w-full h-full object-cover" />
-                ) : (
-                  <span>{currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : 'U'}</span>
-                )}
-              </div>
+              <FacelessAvatar
+                src={userPhoto}
+                alt={currentUser.displayName}
+                className="w-7 h-7 border border-[#CCA352]/50 shadow-2xs"
+              />
               <div className="text-left leading-tight hidden sm:block">
                 <div className="font-semibold text-white truncate max-w-[140px] md:max-w-[180px]">
                   {currentUser.displayName}

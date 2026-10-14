@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { storageService, EmployeeImportRow, EmployeeImportResult } from '../../services/storage';
+import { DEFAULT_FACELESS_AVATAR } from '../../assets/defaultAvatar';
 import { UserRole } from '../../types';
 
 interface ImportEmployeesModalProps {
@@ -350,7 +351,7 @@ export const ImportEmployeesModal: React.FC<ImportEmployeesModalProps> = ({
         employmentType: String(normalized.employmentType || '').trim(),
         workLocation: String(normalized.workLocation || '').trim(),
         manager: String(normalized.manager || '').trim(),
-        photo: String(normalized.photo || '').trim(),
+        photo: String(normalized.photo || '').trim() || DEFAULT_FACELESS_AVATAR,
       };
 
       rows.push({

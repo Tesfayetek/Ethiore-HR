@@ -18,6 +18,7 @@ import { storageService } from '../../services/storage';
 import { ConfirmDeleteModal } from '../common/ConfirmDeleteModal';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
 import { ReportPrintFooter } from '../common/ReportPrintFooter';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 
 interface LeaveRecordsTabProps {
   leaveRecords: LeaveRecord[];
@@ -309,17 +310,12 @@ export const LeaveRecordsTab: React.FC<LeaveRecordsTabProps> = ({
                       {/* Employee Name */}
                       <td className="py-3 px-3.5 whitespace-nowrap">
                         <div className="flex items-center space-x-2">
-                          {emp?.photo ? (
-                            <img
-                              src={emp.photo}
-                              alt=""
-                              className="w-6 h-6 rounded-full object-cover border border-slate-200"
-                            />
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
-                              {rec.employeeName.charAt(0)}
-                            </div>
-                          )}
+                          <FacelessAvatar
+                            src={emp?.photo}
+                            alt={rec.employeeName}
+                            size="xs"
+                            className="border border-slate-200"
+                          />
                           <span className="font-bold text-slate-900">{rec.employeeName}</span>
                         </div>
                       </td>

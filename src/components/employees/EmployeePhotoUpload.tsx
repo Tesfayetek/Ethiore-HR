@@ -2,6 +2,8 @@ import React, { useState, useRef, ChangeEvent } from 'react';
 import { Camera, Upload, Trash2, RefreshCw, User as UserIcon, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { optimizeEmployeePhoto, PHOTO_LIMITS } from '../../utils/imageOptimizer';
 import { storageService } from '../../services/storage';
+import { FacelessAvatar } from '../common/FacelessAvatar';
+import { DEFAULT_FACELESS_AVATAR } from '../../assets/defaultAvatar';
 import { UserRole } from '../../types';
 
 interface EmployeePhotoUploadProps {
@@ -140,20 +142,14 @@ export const EmployeePhotoUpload: React.FC<EmployeePhotoUploadProps> = ({
       </div>
 
       <div className="flex flex-col sm:flex-row items-center gap-3.5 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-        {/* Compact Square / Circular Preview (120 x 120 px) */}
-        <div className="relative w-[120px] h-[120px] rounded-xl overflow-hidden border-2 border-slate-200 bg-white shadow-xs shrink-0 flex items-center justify-center group">
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt={employeeName}
-              className="w-full h-full object-cover rounded-lg"
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-slate-100 text-slate-400">
-              <UserIcon className="w-10 h-10 mb-1 opacity-60" />
-              <span className="text-[10px] font-medium text-slate-400">No Photo</span>
-            </div>
-          )}
+        {/* Circular Avatar Presentation (120 x 120 px) */}
+        <div className="relative w-[120px] h-[120px] rounded-full overflow-hidden border-2 border-slate-200 bg-white shadow-xs shrink-0 flex items-center justify-center group">
+          <FacelessAvatar
+            src={photoUrl}
+            alt={employeeName}
+            size={120}
+            className="w-full h-full"
+          />
 
           {isProcessing && (
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-2xs flex flex-col items-center justify-center text-white">
@@ -181,7 +177,7 @@ export const EmployeePhotoUpload: React.FC<EmployeePhotoUploadProps> = ({
                 id={`photo-input-${employeeId || 'new'}`}
               />
 
-              {!photoUrl ? (
+              {(!photoUrl || photoUrl === DEFAULT_FACELESS_AVATAR) ? (
                 <label
                   htmlFor={`photo-input-${employeeId || 'new'}`}
                   className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-semibold rounded-lg shadow-2xs cursor-pointer transition-colors active:scale-[0.98]"
@@ -206,7 +202,7 @@ export const EmployeePhotoUpload: React.FC<EmployeePhotoUploadProps> = ({
                     className="inline-flex items-center space-x-1 px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-medium rounded-lg transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>Remove</span>
+                    <span>Reset to Avatar</span>
                   </button>
                 </>
               )}

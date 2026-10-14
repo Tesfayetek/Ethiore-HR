@@ -30,6 +30,7 @@ import {
 import { storageService } from '../../services/storage';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
 import { ReportPrintFooter } from '../common/ReportPrintFooter';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 
 interface AttendanceViewProps {
   userRole: UserRole;
@@ -691,17 +692,12 @@ export const AttendanceView = ({
                         <tr key={rec.id} className="hover:bg-slate-50/70 transition-colors">
                           <td className="py-3 px-4">
                             <div className="flex items-center space-x-2.5">
-                              {emp?.photo ? (
-                                <img
-                                  src={emp.photo}
-                                  alt=""
-                                  className="w-8 h-8 rounded-full object-cover border border-slate-200"
-                                />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-slate-150 text-slate-600 border border-slate-250 flex items-center justify-center font-bold text-xs shrink-0">
-                                  {rec.employeeName.charAt(0)}
-                                </div>
-                              )}
+                              <FacelessAvatar
+                                src={emp?.photo}
+                                alt={rec.employeeName}
+                                size="sm"
+                                className="border border-slate-200"
+                              />
                               <div>
                                 <div className="font-bold text-slate-900">{rec.employeeName}</div>
                                 <span className="font-mono text-[11px] text-slate-500">{rec.employeeId}</span>

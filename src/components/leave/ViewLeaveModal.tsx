@@ -14,6 +14,7 @@ import { LeaveRecord } from '../../types';
 import { storageService } from '../../services/storage';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
 import { ReportPrintFooter } from '../common/ReportPrintFooter';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 
 interface ViewLeaveModalProps {
   leave: LeaveRecord | null;
@@ -116,17 +117,12 @@ export const ViewLeaveModal: React.FC<ViewLeaveModalProps> = ({
 
           {/* Employee Header */}
           <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/60 flex items-center space-x-4">
-            {emp?.photo ? (
-              <img
-                src={emp.photo}
-                alt={leave.employeeName}
-                className="w-14 h-14 rounded-full object-cover border-2 border-amber-400 shadow-xs"
-              />
-            ) : (
-              <div className="w-14 h-14 rounded-full bg-[#186382] text-amber-300 font-bold text-base flex items-center justify-center border-2 border-amber-400 shadow-xs shrink-0">
-                {leave.employeeName.split(' ').map((n) => n[0]).slice(0, 2).join('')}
-              </div>
-            )}
+            <FacelessAvatar
+              src={emp?.photo}
+              alt={leave.employeeName}
+              size="lg"
+              className="border-2 border-amber-400 shadow-xs"
+            />
             <div className="grow">
               <div className="flex items-center space-x-2">
                 <span className="text-base font-bold text-slate-900">

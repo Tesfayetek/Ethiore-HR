@@ -16,6 +16,7 @@ import { LeaveBalance } from '../../types';
 import { storageService } from '../../services/storage';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
 import { ReportPrintFooter } from '../common/ReportPrintFooter';
+import { FacelessAvatar } from '../common/FacelessAvatar';
 
 interface LeaveBalanceTabProps {
   leaveBalances: LeaveBalance[];
@@ -296,17 +297,12 @@ export const LeaveBalanceTab: React.FC<LeaveBalanceTabProps> = ({
                       {/* Employee Name */}
                       <td className="py-3 px-4">
                         <div className="flex items-center space-x-2">
-                          {emp?.photo ? (
-                            <img
-                              src={emp.photo}
-                              alt=""
-                              className="w-6 h-6 rounded-full object-cover border border-slate-200"
-                            />
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold text-[10px] flex items-center justify-center shrink-0">
-                              {name.charAt(0)}
-                            </div>
-                          )}
+                          <FacelessAvatar
+                            src={emp?.photo}
+                            alt={name}
+                            size="xs"
+                            className="border border-slate-200"
+                          />
                           <span className="font-bold text-slate-900">{name}</span>
                           {emp?.status === 'Inactive' && (
                             <span className="px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 text-[10px] border border-rose-200">

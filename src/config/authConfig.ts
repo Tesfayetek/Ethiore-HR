@@ -23,7 +23,7 @@ export const AUTH_CONFIG = {
   ] as const,
 
   // Standard rejection error message specified by the prompt
-  unauthorizedDomainErrorMessage: 'Please use your Ethiopian Reinsurance corporate email address.',
+  unauthorizedDomainErrorMessage: 'Registration is permitted only with an @ethiopianre.com corporate email address or authorized accounts (contactesfaye@gmail.com, tesfayeteklufeyissa@gmail.com).',
 
   /**
    * Validate whether an email address is authorized for employee account registration.

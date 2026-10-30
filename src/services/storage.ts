@@ -415,73 +415,24 @@ export const storageService = {
       };
     }
 
-    // Step 3: Check Employee Master Data linking or provision with personal info
-    let matchedEmployee = this.findEmployeeByEmail(normalizedEmail);
-    if (!matchedEmployee) {
-      // Auto-provision Employee Master Record with the entered personal information
-      const employees = this.getEmployees();
-      const count = employees.length + 1;
-      const nextId = `ER-${String(count).padStart(3, '0')}`;
-      const resolvedName =
-        fullName?.trim() ||
-        normalizedEmail
-          .split('@')[0]
-          .replace(/[._-]/g, ' ')
-          .replace(/\b\w/g, (c) => c.toUpperCase());
+    // Step 3: Match registered corporate email with existing Employee Master Data
+    const matchedEmployee = this.findEmployeeByEmail(normalizedEmail);
+    let linkedEmployeeId: string | undefined = undefined;
 
-      const newEmployee: Employee = {
-        id: `emp-${Date.now()}`,
-        employeeId: nextId,
-        fullName: resolvedName,
-        gender: 'Male',
-        dateOfBirth: '1995-01-01',
-        employmentDate: new Date().toISOString().split('T')[0],
-        department: 'General Operations',
-        position: 'Staff Member',
-        employmentType: 'Permanent',
-        workLocation: 'Addis Ababa Head Office',
-        manager: 'Executive Management',
-        phoneNumber: phoneNumber?.trim() || '+251 91 000 0000',
-        emailAddress: normalizedEmail,
-        photo: DEFAULT_FACELESS_AVATAR,
-        status: 'Active',
-      };
-
-      employees.push(newEmployee);
-      setStorageItem(STORAGE_KEYS.EMPLOYEES, employees);
-
-      // Initialize default leave balances per Ethiopian Labor statutory policy
-      const leaveTypes = this.getLeaveTypes();
-      const balances = this.getLeaveBalances();
-      leaveTypes.forEach((lt) => {
-        balances.push({
-          id: `bal-${newEmployee.employeeId}-${lt.id}`,
-          employeeId: newEmployee.employeeId,
-          leaveType: lt.name,
-          entitled: lt.defaultDays,
-          taken: 0,
-          pending: 0,
-          remaining: lt.defaultDays,
-        });
-      });
-      setStorageItem(STORAGE_KEYS.LEAVE_BALANCES, balances);
-
-      matchedEmployee = newEmployee;
-    } else {
+    if (matchedEmployee) {
       // Check if employeeId is already linked
       const links = this.getEmployeeAccountLinks();
-      const existingLink = links.find((l) => l.employeeId === matchedEmployee!.employeeId);
+      const existingLink = links.find((l) => l.employeeId === matchedEmployee.employeeId);
       if (existingLink) {
         return {
           success: false,
           message: `An account is already linked to Employee ID ${matchedEmployee.employeeId} (${matchedEmployee.fullName}). Please sign in.`,
         };
       }
-      if (fullName?.trim() && !matchedEmployee.fullName) {
-        matchedEmployee.fullName = fullName.trim();
-        this.saveEmployee(matchedEmployee, this.getCurrentUser());
-      }
+      linkedEmployeeId = matchedEmployee.employeeId;
     }
+    // If no matching employee record exists, do NOT auto-create a mock employee.
+    // The account receives the Employee role with unlinked profile, requiring Administrator verification.
 
     // Step 4: Provision in Firebase Auth & Firestore
     let uid = `usr-emp-${Date.now()}`;
@@ -496,6 +447,8 @@ export const storageService = {
         } catch (vErr) {
           console.warn('sendEmailVerification notice:', vErr);
         }
+        // Immediately sign out newly registered user per Requirement #3
+        await signOut(auth);
       }
     } catch (fbErr: any) {
       if (fbErr.code === 'auth/email-already-in-use') {
@@ -510,47 +463,60 @@ export const storageService = {
       };
     }
 
+    const resolvedDisplayName =
+      fullName?.trim() ||
+      matchedEmployee?.fullName ||
+      normalizedEmail
+        .split('@')[0]
+        .replace(/[._-]/g, ' ')
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+
     // Backend strictly enforces Employee role
     const newUser: User = {
       id: uid,
       email: normalizedEmail,
-      displayName: matchedEmployee.fullName,
+      displayName: resolvedDisplayName,
       role: 'Employee', // STRICTLY Employee
-      employeeId: matchedEmployee.employeeId,
+      employeeId: linkedEmployeeId,
       createdAt: new Date().toISOString(),
       avatar: DEFAULT_FACELESS_AVATAR,
       status: 'Active',
-      isEmailVerified: false, // Requires email verification before self-service access
+      isEmailVerified: false,
     };
 
-    const newLink: EmployeeAccountLink = {
-      id: `link-${Date.now()}`,
-      uid: uid,
-      employeeId: matchedEmployee.employeeId,
-      email: normalizedEmail,
-      employeeName: matchedEmployee.fullName,
-      department: matchedEmployee.department,
-      position: matchedEmployee.position,
-      accountStatus: 'Active',
-      emailVerified: false,
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString(),
-      linkedBy: 'Auto-Registration',
-    };
+    let newLink: EmployeeAccountLink | null = null;
+    if (matchedEmployee) {
+      newLink = {
+        id: `link-${Date.now()}`,
+        uid: uid,
+        employeeId: matchedEmployee.employeeId,
+        email: normalizedEmail,
+        employeeName: matchedEmployee.fullName,
+        department: matchedEmployee.department,
+        position: matchedEmployee.position,
+        accountStatus: 'Active',
+        emailVerified: false,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+        linkedBy: 'Auto-Registration',
+      };
+    }
 
     // Save in Firestore if available (enforcing Employee role)
     try {
       await setDoc(doc(db, 'users', uid), {
         id: uid,
         email: normalizedEmail,
-        displayName: matchedEmployee.fullName,
+        displayName: resolvedDisplayName,
         role: 'Employee',
-        employeeId: matchedEmployee.employeeId,
+        employeeId: linkedEmployeeId || null,
         createdAt: newUser.createdAt,
         status: 'Active',
         isEmailVerified: false,
       });
-      await setDoc(doc(db, 'employeeAccountLinks', uid), newLink);
+      if (newLink) {
+        await setDoc(doc(db, 'employeeAccountLinks', uid), newLink);
+      }
     } catch (firestoreErr) {
       console.warn('Firestore sync notice:', firestoreErr);
     }
@@ -559,31 +525,28 @@ export const storageService = {
     const updatedUsers = [...users, newUser];
     setStorageItem(STORAGE_KEYS.USERS, updatedUsers);
 
-    const links = this.getEmployeeAccountLinks();
-    const updatedLinks = [...links, newLink];
-    setStorageItem(STORAGE_KEYS.EMPLOYEE_ACCOUNT_LINKS, updatedLinks);
-
-    // Create a welcome notification
-    this.addNotification({
-      employeeId: matchedEmployee.employeeId,
-      title: 'Welcome to Ethiopian Reinsurance HRMS',
-      message: `Your employee self-service profile has been registered and linked to Employee ID ${matchedEmployee.employeeId}.`,
-      category: 'general',
-    });
+    if (newLink) {
+      const links = this.getEmployeeAccountLinks();
+      setStorageItem(STORAGE_KEYS.EMPLOYEE_ACCOUNT_LINKS, [...links, newLink]);
+      this.addNotification({
+        employeeId: matchedEmployee!.employeeId,
+        title: 'Welcome to Ethiopian Reinsurance HRMS',
+        message: `Your employee self-service profile has been registered and linked to Employee ID ${matchedEmployee!.employeeId}.`,
+        category: 'general',
+      });
+    }
 
     this.addAuditLog(
       'EMPLOYEE_REGISTERED',
       'Authentication',
-      `Employee account created & linked to Master Data: ${matchedEmployee.fullName} (${matchedEmployee.employeeId}) [${normalizedEmail}] - Role: Employee`,
+      `Employee account registered: ${resolvedDisplayName} [${normalizedEmail}] - Role: Employee (${linkedEmployeeId ? `Linked to ${linkedEmployeeId}` : 'Pending Profile Verification'})`,
       undefined,
       newUser
     );
 
     return {
       success: true,
-      message: verificationEmailSent
-        ? `Account created! A verification link has been dispatched to ${normalizedEmail}. Please verify your email before accessing self-service records.`
-        : `Account created successfully with Employee role! Please verify your corporate email to access self-service records.`,
+      message: 'Registration successful! A verification email has been sent. Please check your inbox and verify your email before signing in.',
       user: newUser,
       employee: matchedEmployee,
     };
@@ -708,25 +671,55 @@ export const storageService = {
       };
     }
 
-    // For employees, check email verification requirement
-    if (user.role === 'Employee') {
-      if (fbUser.emailVerified && !user.isEmailVerified) {
-        user.isEmailVerified = true;
-        setStorageItem(STORAGE_KEYS.USERS, users);
-      }
-
-      if (!fbUser.emailVerified) {
-        // Unverified employee: prevent session from accessing protected pages
-        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
-        localStorage.setItem('ethiore_hrms_logged_out', 'true');
-        return {
-          success: false,
-          needsEmailVerification: true,
-          user: { ...user, isEmailVerified: false },
-          message: 'Email verification required before accessing Ethiopian Reinsurance employee self-service records.',
-        };
+    // Refresh Firebase user to confirm latest emailVerified state directly from server
+    if (fbUser) {
+      try {
+        await fbUser.reload();
+      } catch (rErr) {
+        console.warn('Notice reloading user verification status:', rErr);
       }
     }
+
+    // Enforce email verification requirement per Requirement #3
+    if (fbUser && !fbUser.emailVerified) {
+      // Immediately sign the user out per Requirement #3
+      await signOut(auth);
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+      localStorage.setItem('ethiore_hrms_logged_out', 'true');
+      return {
+        success: false,
+        needsEmailVerification: true,
+        user: { ...user, isEmailVerified: false },
+        message: 'Your email address has not been verified. Please check your inbox and verify your email before signing in.',
+      };
+    }
+
+    // Verified account -> update status and link to Employee Master Data if matching record exists
+    user.isEmailVerified = true;
+    if (!user.employeeId) {
+      const matchedEmp = this.findEmployeeByEmail(cleanEmail);
+      if (matchedEmp) {
+        user.employeeId = matchedEmp.employeeId;
+        const links = this.getEmployeeAccountLinks();
+        if (!links.some((l) => l.uid === user!.id || l.employeeId === matchedEmp.employeeId)) {
+          links.push({
+            id: `link-${Date.now()}`,
+            uid: user.id,
+            employeeId: matchedEmp.employeeId,
+            email: cleanEmail,
+            employeeName: matchedEmp.fullName,
+            department: matchedEmp.department,
+            position: matchedEmp.position,
+            accountStatus: 'Active',
+            emailVerified: true,
+            createdAt: new Date().toISOString(),
+            linkedBy: 'Auto-Link-On-Login',
+          });
+          setStorageItem(STORAGE_KEYS.EMPLOYEE_ACCOUNT_LINKS, links);
+        }
+      }
+    }
+    setStorageItem(STORAGE_KEYS.USERS, users);
 
     // Set authenticated user session
     this.setCurrentUser(user.id);
@@ -740,63 +733,103 @@ export const storageService = {
   },
 
   // Resend Email Verification using authoritative Firebase Auth session
-  async resendVerificationEmail(): Promise<{ success: boolean; message: string }> {
+  async resendVerificationEmail(email?: string, password?: string): Promise<{ success: boolean; message: string }> {
     try {
       if (auth.currentUser) {
         await sendEmailVerification(auth.currentUser);
         return {
           success: true,
-          message: `Verification link resent to ${auth.currentUser.email}. Please check your inbox.`,
+          message: `Verification link sent to ${auth.currentUser.email}. Please check your inbox.`,
+        };
+      }
+      if (email && password) {
+        const clean = email.trim().toLowerCase();
+        const cred = await signInWithEmailAndPassword(auth, clean, password);
+        await sendEmailVerification(cred.user);
+        await signOut(auth);
+        return {
+          success: true,
+          message: `Verification link sent to ${clean}. Please check your inbox.`,
         };
       }
       return {
         success: false,
-        message: 'No active session found. Please sign in first to resend your verification email.',
+        message: 'Please enter your corporate email and password on the Sign In form to resend your verification link.',
       };
     } catch (err: any) {
+      if (err.code === 'auth/too-many-requests') {
+        return {
+          success: false,
+          message: 'A verification email was recently dispatched. Please check your spam folder or wait a moment before requesting another.',
+        };
+      }
       return {
         success: false,
-        message: err.message || 'Failed to resend verification email.',
+        message: err.message || 'Failed to dispatch verification email.',
       };
     }
   },
 
   // Check Email Verification Status with Firebase Auth
-  async checkEmailVerified(userId?: string): Promise<{ verified: boolean; message: string }> {
+  async checkEmailVerified(email?: string, password?: string, userId?: string): Promise<{ verified: boolean; message: string; user?: User }> {
     try {
-      if (!auth.currentUser) {
+      let targetUser: FirebaseUser | null = auth.currentUser;
+      if (!targetUser && email && password) {
+        try {
+          const cred = await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), password);
+          targetUser = cred.user;
+        } catch (e: any) {
+          return {
+            verified: false,
+            message: 'Invalid credentials. Please enter your email and password to check verification status.',
+          };
+        }
+      }
+
+      if (!targetUser) {
         return {
           verified: false,
-          message: 'No active Firebase session. Please log in with your credentials.',
+          message: 'Please enter your password on the sign-in form to check your email verification status.',
         };
       }
 
-      await reload(auth.currentUser);
-      if (auth.currentUser.emailVerified) {
+      await targetUser.reload();
+      if (targetUser.emailVerified) {
+        const cleanEmail = targetUser.email?.toLowerCase() || '';
         const users = this.getUsers();
-        const target = users.find(
+        let appUser = users.find(
           (u) =>
-            u.email.toLowerCase() === auth.currentUser?.email?.toLowerCase() ||
-            u.id === auth.currentUser?.uid ||
+            u.id === targetUser?.uid ||
+            u.email.toLowerCase() === cleanEmail ||
             (userId && u.id === userId)
         );
-        if (target) {
-          target.isEmailVerified = true;
+        if (appUser) {
+          appUser.isEmailVerified = true;
+          const matchedEmp = this.findEmployeeByEmail(cleanEmail);
+          if (matchedEmp && !appUser.employeeId) {
+            appUser.employeeId = matchedEmp.employeeId;
+          }
           setStorageItem(STORAGE_KEYS.USERS, users);
-          this.setCurrentUser(target.id);
+          this.setCurrentUser(appUser.id);
           try {
-            await setDoc(doc(db, 'users', target.id), { isEmailVerified: true }, { merge: true });
+            await setDoc(doc(db, 'users', appUser.id), { isEmailVerified: true }, { merge: true });
           } catch (fsErr) {
             console.warn('Firestore isEmailVerified sync notice:', fsErr);
           }
         }
         window.dispatchEvent(new Event('ethiore_user_change'));
-        return { verified: true, message: 'Email verified successfully! Self-service access enabled.' };
+        return {
+          verified: true,
+          message: 'Your email address has been verified successfully! Redirecting...',
+          user: appUser,
+        };
       }
 
+      // Not verified yet -> sign out immediately
+      await signOut(auth);
       return {
         verified: false,
-        message: 'Email not yet verified. Please click the verification link in your inbox and click "Check Verification Status".',
+        message: 'Your email address has not been verified yet. Please check your inbox and verify your email before signing in.',
       };
     } catch (err: any) {
       return { verified: false, message: err.message || 'Could not verify status.' };

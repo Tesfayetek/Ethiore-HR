@@ -35,6 +35,8 @@ import {
   Check,
   X,
   Printer,
+  Calculator,
+  Info,
 } from 'lucide-react';
 import { EthioReLogo } from '../common/EthioReLogo';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
@@ -209,11 +211,6 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
     setVerifyMsg(res.message);
   };
 
-  const handleSimulateVerify = () => {
-    storageService.simulateVerifyEmail(currentUser.id);
-    setVerifyMsg('Email verified in sandbox mode! All features unlocked.');
-  };
-
   const annualBalance = personalBalances.find((b) => b.leaveType === 'Annual Leave');
   const unreadNotifCount = personalNotifications.filter((n) => !n.read).length;
 
@@ -265,25 +262,6 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
             <Send className="w-3.5 h-3.5" />
             <span>Resend Verification Email</span>
           </button>
-        </div>
-
-        <div className="pt-4 border-t border-slate-200 max-w-sm mx-auto">
-          <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-left space-y-1.5">
-            <span className="text-[11px] font-bold text-amber-900 flex items-center space-x-1">
-              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-              <span>Sandbox / Evaluation Bypass:</span>
-            </span>
-            <p className="text-[10px] text-amber-800/80">
-              In this preview environment, you can activate this employee account immediately:
-            </p>
-            <button
-              type="button"
-              onClick={handleSimulateVerify}
-              className="mt-1 w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer"
-            >
-              Verify & Enter Employee Portal
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -820,6 +798,84 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
               subtitle={`Staff Member: ${employee?.fullName || currentUser.displayName} (${employee?.employeeId || currentUser.id}) • ${employee?.department || 'Ethiopian Reinsurance S.C.'}`}
               recordCount={personalLeaves.length}
             />
+
+            {/* Statutory Annual Leave Carry-Forward Breakdown Card */}
+            {annualBalance && (
+              <div className="p-4 bg-gradient-to-r from-slate-50 to-amber-50/40 border border-amber-200 rounded-xl space-y-3 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/60 pb-2.5">
+                  <div className="flex items-center space-x-2">
+                    <span className="p-1 rounded bg-[#0E3D52] text-white">
+                      <Calculator className="w-3.5 h-3.5 text-[#CCA352]" />
+                    </span>
+                    <span className="font-bold text-xs text-[#0E3D52] uppercase tracking-wider">
+                      Annual Leave Carry-Forward Calculation Breakdown (Leave Year {annualBalance.carryForwardBreakdown?.currentLeaveYear || 2026})
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200">
+                    Net Available: {annualBalance.carryForwardBreakdown?.availableAnnualLeave ?? annualBalance.remaining} Days
+                  </span>
+                </div>
+
+                {/* 8 Statutory Metrics */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                  <div className="p-2.5 bg-white border border-slate-200 rounded-lg">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block">1. Leave Year</span>
+                    <span className="font-mono font-bold text-sm text-slate-900 block mt-0.5">
+                      {annualBalance.carryForwardBreakdown?.currentLeaveYear || 2026}
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white border border-slate-200 rounded-lg">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block">2. Entitlement</span>
+                    <span className="font-mono font-bold text-sm text-slate-900 block mt-0.5">
+                      {annualBalance.carryForwardBreakdown?.currentYearEntitlement ?? annualBalance.entitled} d
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white border border-slate-200 rounded-lg">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block">3. Prev Year (N-1)</span>
+                    <span className="font-mono font-bold text-sm text-emerald-700 block mt-0.5">
+                      +{annualBalance.carryForwardBreakdown?.previousYearUnused ?? 0} d
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-white border border-slate-200 rounded-lg">
+                    <span className="text-[10px] uppercase font-bold text-slate-500 block">4. 2nd Prev (N-2)</span>
+                    <span className="font-mono font-bold text-sm text-emerald-700 block mt-0.5">
+                      +{annualBalance.carryForwardBreakdown?.secondPreviousYearUnused ?? 0} d
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <span className="text-[10px] uppercase font-bold text-emerald-800 block">5. Eligible Carry-Fwd</span>
+                    <span className="font-mono font-bold text-sm text-emerald-800 block mt-0.5">
+                      +{annualBalance.carryForwardBreakdown?.totalEligibleCarryForward ?? 0} d
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                    <span className="text-[10px] uppercase font-bold text-amber-800 block">6. Current Year Used</span>
+                    <span className="font-mono font-bold text-sm text-amber-800 block mt-0.5">
+                      −{annualBalance.carryForwardBreakdown?.currentYearUsed ?? annualBalance.taken} d
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-[#0E3D52]/10 border border-[#186382]/30 rounded-lg">
+                    <span className="text-[10px] uppercase font-bold text-[#0E3D52] block">7. Total Available</span>
+                    <span className="font-mono font-extrabold text-sm text-[#0E3D52] block mt-0.5">
+                      {annualBalance.carryForwardBreakdown?.availableAnnualLeave ?? annualBalance.remaining} d
+                    </span>
+                  </div>
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg">
+                    <span className="text-[10px] uppercase font-bold text-rose-800 block">8. Expired (&gt;2 yrs)</span>
+                    <span className="font-mono font-bold text-sm text-rose-700 block mt-0.5">
+                      {annualBalance.carryForwardBreakdown?.expiredOlderLeave ?? 0} d
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-600 flex items-center space-x-1.5 pt-1">
+                  <Info className="w-3.5 h-3.5 text-[#186382] shrink-0" />
+                  <span>
+                    Formula: {annualBalance.carryForwardBreakdown?.currentYearEntitlement ?? annualBalance.entitled} (Entitled) + {annualBalance.carryForwardBreakdown?.totalEligibleCarryForward ?? 0} (Carry-Forward) − {annualBalance.carryForwardBreakdown?.currentYearUsed ?? annualBalance.taken} (Used) = <strong>{annualBalance.carryForwardBreakdown?.availableAnnualLeave ?? annualBalance.remaining} Available Days</strong>. Unused balances older than 2 years are excluded from carry-forward.
+                  </span>
+                </div>
+              </div>
+            )}
 
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">

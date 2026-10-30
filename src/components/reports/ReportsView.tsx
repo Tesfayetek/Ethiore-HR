@@ -261,6 +261,31 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
     });
   }, [leaveRecords, dateFrom, dateTo, selectedEmployeeId, selectedDepartment, searchTerm, employees, selectedReport]);
 
+  // Filtered Leave Balances with Carry-Forward Breakdown
+  const filteredLeaveBalances = useMemo(() => {
+    return leaveBalances.filter((bal) => {
+      const emp = employees.find((e) => e.employeeId === bal.employeeId);
+      if (selectedDepartment !== 'ALL' && emp?.department !== selectedDepartment) {
+        return false;
+      }
+      if (selectedEmployeeId !== 'ALL' && bal.employeeId !== selectedEmployeeId) {
+        return false;
+      }
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        const empName = bal.employeeName || emp?.fullName || '';
+        if (
+          !bal.employeeId.toLowerCase().includes(q) &&
+          !empName.toLowerCase().includes(q) &&
+          !bal.leaveType.toLowerCase().includes(q)
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [leaveBalances, selectedDepartment, selectedEmployeeId, searchTerm, employees]);
+
   // Handle Print
   const handlePrint = () => {
     window.print();
@@ -337,7 +362,6 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         break;
 
       case 'leave_on_leave':
-      case 'leave_employee_info':
         rows.push([
           'Record ID',
           'Employee ID',
@@ -362,6 +386,43 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
             l.status,
             `"${l.reason}"`,
             l.appliedDate,
+          ]);
+        });
+        break;
+
+      case 'leave_employee_info':
+        rows.push([
+          'Employee ID',
+          'Employee Name',
+          'Department',
+          'Leave Type',
+          'Current Leave Year',
+          'Current Entitlement',
+          'Prev Year Unused (N-1)',
+          'Second Prev Unused (N-2)',
+          'Total Eligible Carry Forward',
+          'Current Year Used',
+          'Total Available Days',
+          'Expired Older Days',
+        ]);
+        filteredLeaveBalances.forEach((b) => {
+          const emp = employees.find((e) => e.employeeId === b.employeeId);
+          const name = b.employeeName || emp?.fullName || b.employeeId;
+          const dept = emp?.department || 'N/A';
+          const bd = b.carryForwardBreakdown;
+          rows.push([
+            b.employeeId,
+            `"${name}"`,
+            `"${dept}"`,
+            `"${b.leaveType}"`,
+            String(bd?.currentLeaveYear ?? b.currentLeaveYear ?? 2026),
+            String(bd?.currentYearEntitlement ?? b.currentYearEntitlement ?? b.entitled),
+            String(bd?.previousYearUnused ?? b.previousYearUnused ?? 0),
+            String(bd?.secondPreviousYearUnused ?? b.secondPreviousYearUnused ?? 0),
+            String(bd?.totalEligibleCarryForward ?? b.totalEligibleCarryForward ?? 0),
+            String(bd?.currentYearUsed ?? b.currentYearUsed ?? b.taken),
+            String(bd?.availableAnnualLeave ?? b.availableAnnualLeave ?? b.remaining),
+            String(bd?.expiredOlderLeave ?? b.expiredOlderLeave ?? 0),
           ]);
         });
         break;
@@ -727,8 +788,83 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
           </div>
         )}
 
-        {/* 3. LEAVE REPORTS TABLE */}
-        {currentReportDef.category === 'leave' && (
+        {/* 3. LEAVE BALANCES REPORT TABLE */}
+        {selectedReport === 'leave_employee_info' && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-[#0E3D52] text-white border-b border-slate-200">
+                  <th className="py-2.5 px-3 font-semibold text-slate-100">Emp ID</th>
+                  <th className="py-2.5 px-3 font-semibold text-slate-100">Employee Name</th>
+                  <th className="py-2.5 px-3 font-semibold text-slate-100">Department</th>
+                  <th className="py-2.5 px-3 font-semibold text-slate-100">Leave Type</th>
+                  <th className="py-2.5 px-3 font-semibold text-slate-100 text-center">Entitled</th>
+                  <th className="py-2.5 px-3 font-semibold text-slate-100 text-center">Eligible Carry-Fwd</th>
+                  <th className="py-2.5 px-3 font-semibold text-slate-100 text-center">Used</th>
+                  <th className="py-2.5 px-3 font-semibold text-slate-100 text-center">Available Balance</th>
+                  <th className="py-2.5 px-3 font-semibold text-slate-100 text-center">Expired (&gt;2 yrs)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredLeaveBalances.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="py-8 text-center text-slate-400">
+                      No leave balance records matching the selected parameters.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLeaveBalances.map((b, idx) => {
+                    const emp = employees.find((e) => e.employeeId === b.employeeId);
+                    const name = b.employeeName || emp?.fullName || b.employeeId;
+                    const dept = emp?.department || 'N/A';
+                    const bd = b.carryForwardBreakdown;
+                    return (
+                      <tr key={`${b.employeeId}-${b.leaveType}-${idx}`} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 px-3 font-mono font-bold text-[#186382]">{b.employeeId}</td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-900">{name}</td>
+                        <td className="py-2.5 px-3 text-slate-600">{dept}</td>
+                        <td className="py-2.5 px-3 font-medium text-slate-800">
+                          {b.leaveType}
+                          {b.leaveType === 'Annual Leave' && (
+                            <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] bg-[#186382]/10 text-[#186382] font-bold">
+                              2-Yr Policy
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-center text-slate-700">
+                          {bd?.currentYearEntitlement ?? b.currentYearEntitlement ?? b.entitled}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-center text-emerald-700">
+                          {b.leaveType === 'Annual Leave' ? `+${bd?.totalEligibleCarryForward ?? b.totalEligibleCarryForward ?? 0}d` : '—'}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-center text-amber-700">
+                          {bd?.currentYearUsed ?? b.currentYearUsed ?? b.taken}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono font-bold text-center text-emerald-700">
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs">
+                            {bd?.availableAnnualLeave ?? b.availableAnnualLeave ?? b.remaining} d
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-center">
+                          {(bd?.expiredOlderLeave ?? b.expiredOlderLeave ?? 0) > 0 ? (
+                            <span className="text-rose-600 font-bold" title="Expired older leave beyond 2 years excluded">
+                              {bd?.expiredOlderLeave ?? b.expiredOlderLeave} d
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">0 d</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 4. ON-LEAVE REPORTS TABLE */}
+        {selectedReport === 'leave_on_leave' && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>

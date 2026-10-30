@@ -82,6 +82,34 @@ export interface LeaveRecord {
   approvedBy?: string;
 }
 
+export interface YearlyLeaveRecord {
+  year: number;
+  entitlement: number;
+  used: number;
+  unused: number;
+  notes?: string;
+}
+
+export interface CarryForwardBreakdown {
+  currentLeaveYear: number;
+  currentYearEntitlement: number;
+  previousYearUnused: number; // Year N-1 (e.g. 2025)
+  secondPreviousYearUnused: number; // Year N-2 (e.g. 2024)
+  totalEligibleCarryForward: number; // Sum of eligible unused annual leave balances (N-1 + N-2)
+  currentYearUsed: number; // Leave used in the current leave year
+  availableAnnualLeave: number; // Current Year's Entitlement + Eligible Carry-Forward Leave - Leave Used
+  expiredOlderLeave: number; // Unused balances older than maxCarryForwardYears excluded from carry-forward
+  maxCarryForwardYears: number; // Configurable by Administrator (default: 2)
+  yearlyHistory: YearlyLeaveRecord[];
+}
+
+export interface LeaveCarryForwardPolicy {
+  maxCarryForwardYears: number; // default: 2
+  currentLeaveYear: number; // default: 2026
+  statutoryBaseDays: number; // default: 16
+  allowCarryForward: boolean; // default: true
+}
+
 export interface LeaveBalance {
   id: string;
   employeeId: string;
@@ -90,7 +118,19 @@ export interface LeaveBalance {
   entitled: number; // Entitled Days
   taken: number; // Used Days
   pending?: number;
-  remaining: number; // Remaining Days
+  remaining: number; // Remaining / Available Days
+
+  // Annual Leave Carry-Forward Details (authoritative source of truth)
+  currentLeaveYear?: number;
+  currentYearEntitlement?: number;
+  previousYearUnused?: number;
+  secondPreviousYearUnused?: number;
+  totalEligibleCarryForward?: number;
+  currentYearUsed?: number;
+  availableAnnualLeave?: number;
+  expiredOlderLeave?: number;
+  carryForwardBreakdown?: CarryForwardBreakdown;
+  yearlyHistory?: YearlyLeaveRecord[];
 }
 
 export type AttendanceStatus = 'Present' | 'Late' | 'Absent' | 'Half Day' | 'On Leave' | 'Holiday';
@@ -132,10 +172,16 @@ export interface CompanyInfo {
   city: string;
   country: string;
   phoneNumber: string;
+  telephone?: string;
   email: string;
   website: string;
   currency: string;
   fiscalYearStart: string;
+  workingDays?: string;
+  logoUrl?: string;
+  logoStoragePath?: string;
+  logoUpdatedAt?: string;
+  logoFileName?: string;
 }
 
 export interface Department {

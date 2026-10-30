@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, UserRole } from './types';
 import { storageService } from './services/storage';
-import { auth, onAuthStateChanged } from './services/firebase';
+import { auth, onAuthStateChanged, db, doc, getDoc } from './services/firebase';
 import { Header } from './components/layout/Header';
 import { Sidebar, MainNavId } from './components/layout/Sidebar';
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -105,8 +105,8 @@ export default function App() {
   // Authentication checking state — prevents any protected content from flashing
   const [isAuthChecking, setIsAuthChecking] = useState(true);
 
-  // Authenticated user state (strictly null for unauthenticated sessions)
-  const [currentUser, setCurrentUser] = useState<User | null>(() => storageService.getAuthenticatedUser());
+  // Authenticated user state (strictly null until Firebase confirms session)
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   // Active navigation module
   const [currentNav, setCurrentNav] = useState<MainNavId>('dashboard');
@@ -206,7 +206,6 @@ export default function App() {
     let isMounted = true;
 
     const checkInitialAuth = async () => {
-      const activeLocalUser = storageService.getAuthenticatedUser();
       const routeInfo = parseCurrentRoute();
 
       // Listen to Firebase authentication state
@@ -215,20 +214,32 @@ export default function App() {
 
         if (fbUser) {
           const users = storageService.getUsers();
-          const matchedUser = users.find(
-            (u) => u.email.toLowerCase() === fbUser.email?.toLowerCase()
+          let matchedUser = users.find(
+            (u) =>
+              u.id === fbUser.uid ||
+              u.email.toLowerCase() === fbUser.email?.toLowerCase()
           );
 
+          if (!matchedUser) {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', fbUser.uid));
+              if (userDoc.exists()) {
+                matchedUser = userDoc.data() as User;
+                storageService.addUser(matchedUser);
+              }
+            } catch (e) {
+              console.warn('Notice checking Firestore user on auth restore:', e);
+            }
+          }
+
           if (matchedUser && matchedUser.status === 'Active') {
-            // Check employee email verification rule
-            if (matchedUser.role === 'Employee' && !fbUser.emailVerified && !matchedUser.isEmailVerified) {
+            // Check employee email verification requirement
+            if (matchedUser.role === 'Employee' && !fbUser.emailVerified) {
               await storageService.logoutUser();
               setCurrentUser(null);
               enforceRouteAndUrl(null);
             } else {
-              if (storageService.getAuthenticatedUser()?.id !== matchedUser.id) {
-                storageService.setCurrentUser(matchedUser.id);
-              }
+              storageService.setCurrentUser(matchedUser.id);
               setCurrentUser(matchedUser);
 
               // Determine destination: honor direct URL if permitted, else role default
@@ -248,43 +259,16 @@ export default function App() {
             enforceRouteAndUrl(null);
           }
         } else {
-          // No active Firebase user
-          if (activeLocalUser) {
-            setCurrentUser(activeLocalUser);
-            let destNav: MainNavId = activeLocalUser.role === 'Employee' ? 'my_portal' : 'dashboard';
-            if (routeInfo.navId !== 'login' && routeInfo.navId !== 'unknown') {
-              destNav = routeInfo.navId as MainNavId;
-            }
-            enforceRouteAndUrl(activeLocalUser, destNav, routeInfo.subTab, true);
-          } else {
-            setCurrentUser(null);
-            enforceRouteAndUrl(null);
-          }
+          // Strictly unauthenticated when no active Firebase user
+          storageService.clearSession();
+          setCurrentUser(null);
+          enforceRouteAndUrl(null);
         }
 
         setIsAuthChecking(false);
       });
 
-      // Failsafe timeout to prevent prolonged spinner on slow connections
-      const timer = setTimeout(() => {
-        if (isMounted && isAuthChecking) {
-          const fallbackUser = storageService.getAuthenticatedUser();
-          setCurrentUser(fallbackUser);
-          if (fallbackUser) {
-            let destNav: MainNavId = fallbackUser.role === 'Employee' ? 'my_portal' : 'dashboard';
-            if (routeInfo.navId !== 'login' && routeInfo.navId !== 'unknown') {
-              destNav = routeInfo.navId as MainNavId;
-            }
-            enforceRouteAndUrl(fallbackUser, destNav, routeInfo.subTab, true);
-          } else {
-            enforceRouteAndUrl(null);
-          }
-          setIsAuthChecking(false);
-        }
-      }, 600);
-
       return () => {
-        clearTimeout(timer);
         unsubscribeAuth();
       };
     };

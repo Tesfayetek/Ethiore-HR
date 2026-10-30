@@ -118,8 +118,6 @@ export const ImportEmployeesModal: React.FC<ImportEmployeesModalProps> = ({
   const effectiveRole = userRole || currentUser.role;
   const isAuthorized = effectiveRole === 'Administrator' || effectiveRole === 'HR Admin';
 
-  if (!isOpen) return null;
-
   // 1. Download Excel Template (.xlsx) with Leave Balance column
   const handleDownloadExcelTemplate = () => {
     try {
@@ -469,6 +467,8 @@ export const ImportEmployeesModal: React.FC<ImportEmployeesModalProps> = ({
       return true;
     });
   }, [validatedRows, previewFilter, searchQuery]);
+
+  if (!isOpen) return null;
 
   return (
     <div

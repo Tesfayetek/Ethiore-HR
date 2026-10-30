@@ -123,14 +123,21 @@ export const LeaveReportsTab: React.FC<LeaveReportsTabProps> = ({
     return leaveBalances
       .map((bal) => {
         const emp = employees.find((e) => e.employeeId === bal.employeeId);
+        const bd = bal.carryForwardBreakdown;
         return {
           employeeId: bal.employeeId,
           employeeName: bal.employeeName || emp?.fullName || bal.employeeId,
           department: emp?.department || 'N/A',
           leaveType: bal.leaveType,
-          entitled: bal.entitled,
-          taken: bal.taken,
-          remaining: bal.remaining,
+          entitled: bd?.currentYearEntitlement ?? bal.currentYearEntitlement ?? bal.entitled,
+          taken: bd?.currentYearUsed ?? bal.currentYearUsed ?? bal.taken,
+          remaining: bd?.availableAnnualLeave ?? bal.availableAnnualLeave ?? bal.remaining,
+          currentLeaveYear: bd?.currentLeaveYear ?? bal.currentLeaveYear ?? 2026,
+          previousYearUnused: bd?.previousYearUnused ?? bal.previousYearUnused ?? 0,
+          secondPreviousYearUnused: bd?.secondPreviousYearUnused ?? bal.secondPreviousYearUnused ?? 0,
+          totalEligibleCarryForward: bd?.totalEligibleCarryForward ?? bal.totalEligibleCarryForward ?? 0,
+          expiredOlderLeave: bd?.expiredOlderLeave ?? bal.expiredOlderLeave ?? 0,
+          carryForwardBreakdown: bd,
         };
       })
       .filter((row) => {
@@ -227,11 +234,11 @@ export const LeaveReportsTab: React.FC<LeaveReportsTabProps> = ({
         )
         .join('\n');
     } else if (selectedReport === 'balance') {
-      header = 'Employee ID,Employee Name,Department,Leave Type,Entitled Days,Used Days,Remaining Days\n';
+      header = 'Employee ID,Employee Name,Department,Leave Type,Current Leave Year,Current Entitlement,Prev Year Unused (N-1),Second Prev Unused (N-2),Total Eligible Carry Forward,Current Year Used,Total Available Days,Expired Older Days\n';
       rows = balanceReportData
         .map(
           (r) =>
-            `"${r.employeeId}","${r.employeeName}","${r.department}","${r.leaveType}",${r.entitled},${r.taken},${r.remaining}`
+            `"${r.employeeId}","${r.employeeName}","${r.department}","${r.leaveType}",${r.currentLeaveYear},${r.entitled},${r.previousYearUnused},${r.secondPreviousYearUnused},${r.totalEligibleCarryForward},${r.taken},${r.remaining},${r.expiredOlderLeave}`
         )
         .join('\n');
     } else if (selectedReport === 'history') {
@@ -583,8 +590,10 @@ export const LeaveReportsTab: React.FC<LeaveReportsTabProps> = ({
                       <th className="p-3">Department</th>
                       <th className="p-3">Leave Type</th>
                       <th className="p-3 text-center">Entitled Days</th>
+                      <th className="p-3 text-center">Eligible Carry-Fwd</th>
                       <th className="p-3 text-center">Used Days</th>
-                      <th className="p-3 text-center">Remaining Days</th>
+                      <th className="p-3 text-center">Available Balance</th>
+                      <th className="p-3 text-center">Expired (&gt;2 yrs)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -593,10 +602,33 @@ export const LeaveReportsTab: React.FC<LeaveReportsTabProps> = ({
                         <td className="p-3 font-mono font-bold text-amber-900">{row.employeeId}</td>
                         <td className="p-3 font-bold text-slate-900">{row.employeeName}</td>
                         <td className="p-3 text-slate-700">{row.department}</td>
-                        <td className="p-3 font-semibold text-slate-800">{row.leaveType}</td>
+                        <td className="p-3 font-semibold text-slate-800">
+                          <span>{row.leaveType}</span>
+                          {row.leaveType === 'Annual Leave' && (
+                            <span className="ml-1.5 px-1.5 py-0.2 rounded text-[10px] bg-[#186382]/10 text-[#186382] font-bold">
+                              2-Yr Policy
+                            </span>
+                          )}
+                        </td>
                         <td className="p-3 text-center font-mono font-bold text-slate-700">{row.entitled}</td>
+                        <td className="p-3 text-center font-mono font-bold text-emerald-700">
+                          {row.leaveType === 'Annual Leave' ? `+${row.totalEligibleCarryForward}d` : '—'}
+                        </td>
                         <td className="p-3 text-center font-mono font-bold text-amber-700">{row.taken}</td>
-                        <td className="p-3 text-center font-mono font-bold text-emerald-700">{row.remaining}</td>
+                        <td className="p-3 text-center font-mono font-bold text-emerald-700">
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-xs">
+                            {row.remaining} d
+                          </span>
+                        </td>
+                        <td className="p-3 text-center font-mono text-[11px]">
+                          {row.expiredOlderLeave > 0 ? (
+                            <span className="text-rose-600 font-bold" title="Expired older leave beyond 2 years excluded">
+                              {row.expiredOlderLeave} d
+                            </span>
+                          ) : (
+                            <span className="text-slate-400">0 d</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

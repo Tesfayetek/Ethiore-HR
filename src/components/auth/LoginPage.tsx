@@ -87,18 +87,16 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     try {
       const res = await storageService.loginUser(loginEmail, loginPassword);
       if (res.success && res.user) {
-        if (res.needsEmailVerification) {
-          setPendingUser(res.user);
-          setMode('verify_email');
-          setErrorMessage('Email verification required before accessing Ethiopian Reinsurance employee self-service records.');
-        } else {
-          onLoginSuccess(res.user);
-        }
+        onLoginSuccess(res.user);
+      } else if (res.needsEmailVerification && res.user) {
+        setPendingUser(res.user);
+        setMode('verify_email');
+        setErrorMessage(res.message || 'Email verification required before accessing Ethiopian Reinsurance employee self-service records.');
       } else {
-        setErrorMessage(res.message || 'Invalid credentials. Please verify your email and password.');
+        setErrorMessage(res.message || 'Invalid email or password. Please check your credentials and try again.');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Authentication error. Please retry.');
+      setErrorMessage(err.message || 'Invalid email or password. Please check your credentials and try again.');
     } finally {
       setIsLoading(false);
     }
@@ -223,17 +221,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({
     }
   };
 
-  // Sandbox bypass for testing
-  const handleSimulateVerification = () => {
-    storageService.simulateVerifyEmail(pendingUser?.id);
-    setSuccessMessage('Email verified via sandbox mode. Accessing Ethiopian Reinsurance self-service portal...');
-    const curr = storageService.getAuthenticatedUser();
-    if (curr) {
-      setTimeout(() => {
-        onLoginSuccess(curr);
-      }, 500);
-    }
-  };
 
   return (
     <div className="min-h-screen w-full bg-slate-900 flex items-stretch">
@@ -771,35 +758,17 @@ export const LoginPage: React.FC<LoginPageProps> = ({
                   </button>
                 </div>
 
-                {/* Sandbox / Demo Bypass */}
-                <div className="pt-3 border-t border-slate-200">
-                  <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-left space-y-1.5">
-                    <span className="text-[11px] font-bold text-amber-900 flex items-center space-x-1">
-                      <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Sandbox / Demonstration Mode:</span>
-                    </span>
-                    <p className="text-[10px] text-amber-800/80">
-                      In the preview environment, you can instantly verify this account to explore employee self-service records:
-                    </p>
-                    <button
-                      type="button"
-                      onClick={handleSimulateVerification}
-                      className="mt-1 w-full py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
-                    >
-                      Instant Verify & Enter Portal
-                    </button>
-                  </div>
-                </div>
 
                 <div className="pt-2 text-center">
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
+                      await storageService.logoutUser();
                       setMode('login');
                       setErrorMessage(null);
                       setSuccessMessage(null);
                     }}
-                    className="text-xs text-slate-500 hover:text-slate-800 transition-colors"
+                    className="text-xs text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
                   >
                     Back to Sign In
                   </button>

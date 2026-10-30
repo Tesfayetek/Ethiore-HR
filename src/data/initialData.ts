@@ -6,6 +6,7 @@ import {
   LeaveTypeConfig,
   LeaveRecord,
   LeaveBalance,
+  LeaveCarryForwardPolicy,
   AttendanceRecord,
   OvertimeRecord,
   EthiopianHoliday,
@@ -113,16 +114,56 @@ export const initialLeaveTypes: LeaveTypeConfig[] = [
   },
 ];
 
-// Baseline statutory leave balance
+// Official Ethiopian Reinsurance Leave Carry-Forward Policy (Default: 2 years)
+export const initialLeavePolicy: LeaveCarryForwardPolicy = {
+  maxCarryForwardYears: 2,
+  currentLeaveYear: 2026,
+  statutoryBaseDays: 16,
+  allowCarryForward: true,
+};
+
+// Baseline statutory leave balance with authoritative 2-year carry-forward calculation
 export const initialLeaveBalances: LeaveBalance[] = [
   {
     id: 'bal-EMP001-lt-annual',
     employeeId: 'EMP001',
+    employeeName: 'Abebe Kebede Tessema',
     leaveType: 'Annual Leave',
     entitled: 18,
-    taken: 3,
+    taken: 2,
     pending: 0,
-    remaining: 18,
+    remaining: 24, // Available: 18 + (5 + 3) - 2 = 24 days
+    currentLeaveYear: 2026,
+    currentYearEntitlement: 18,
+    previousYearUnused: 5,
+    secondPreviousYearUnused: 3,
+    totalEligibleCarryForward: 8,
+    currentYearUsed: 2,
+    availableAnnualLeave: 24,
+    expiredOlderLeave: 4,
+    yearlyHistory: [
+      { year: 2026, entitlement: 18, used: 2, unused: 16, notes: 'Current Leave Year 2026' },
+      { year: 2025, entitlement: 18, used: 13, unused: 5, notes: 'Previous Year (Year N-1, Eligible Carry-Forward)' },
+      { year: 2024, entitlement: 17, used: 14, unused: 3, notes: 'Second Previous Year (Year N-2, Eligible Carry-Forward)' },
+      { year: 2023, entitlement: 16, used: 12, unused: 4, notes: 'Older Unused Leave (Year N-3, Expired / Ineligible beyond 2 years)' },
+    ],
+    carryForwardBreakdown: {
+      currentLeaveYear: 2026,
+      currentYearEntitlement: 18,
+      previousYearUnused: 5,
+      secondPreviousYearUnused: 3,
+      totalEligibleCarryForward: 8,
+      currentYearUsed: 2,
+      availableAnnualLeave: 24,
+      expiredOlderLeave: 4,
+      maxCarryForwardYears: 2,
+      yearlyHistory: [
+        { year: 2026, entitlement: 18, used: 2, unused: 16, notes: 'Current Leave Year 2026' },
+        { year: 2025, entitlement: 18, used: 13, unused: 5, notes: 'Previous Year (Year N-1, Eligible Carry-Forward)' },
+        { year: 2024, entitlement: 17, used: 14, unused: 3, notes: 'Second Previous Year (Year N-2, Eligible Carry-Forward)' },
+        { year: 2023, entitlement: 16, used: 12, unused: 4, notes: 'Older Unused Leave (Year N-3, Expired / Ineligible beyond 2 years)' },
+      ],
+    },
   },
 ];
 
@@ -135,8 +176,8 @@ export const initialLeaveRecords: LeaveRecord[] = [
     department: 'Underwriting & Reinsurance Operations',
     leaveType: 'Annual Leave',
     startDate: '2026-01-10',
-    endDate: '2026-01-12',
-    days: 3,
+    endDate: '2026-01-11',
+    days: 2,
     reason: 'Statutory annual leave taken',
     status: 'Recorded',
     createdBy: 'HR Administration',

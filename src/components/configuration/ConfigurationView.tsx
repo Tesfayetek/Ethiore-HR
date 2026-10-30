@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, useRef, FormEvent, ChangeEvent } from 'react';
 import {
   Building,
   Briefcase,
@@ -22,6 +22,8 @@ import {
   RefreshCw,
   Server,
   Zap,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   UserRole,
@@ -31,11 +33,13 @@ import {
   EthiopianHoliday,
   AttendanceSettings,
   User,
+  LeaveCarryForwardPolicy,
 } from '../../types';
 import { storageService } from '../../services/storage';
 import { ConfirmDeleteModal } from '../common/ConfirmDeleteModal';
 import { ReportPrintHeader } from '../common/ReportPrintHeader';
 import { ReportPrintFooter } from '../common/ReportPrintFooter';
+import { EthioReLogo } from '../common/EthioReLogo';
 
 interface ConfigurationViewProps {
   userRole: UserRole;
@@ -71,6 +75,22 @@ export const ConfigurationView = ({
 
   // Leave Types
   const [leaveTypes, setLeaveTypes] = useState<LeaveTypeConfig[]>(() => storageService.getLeaveTypes());
+
+  // Annual Leave Carry-Forward Policy (Administrator Configurable, defaults to 2 years)
+  const [leavePolicy, setLeavePolicy] = useState<LeaveCarryForwardPolicy>(() => storageService.getLeavePolicy());
+  const [policySavedMsg, setPolicySavedMsg] = useState<string | null>(null);
+
+  const handleSaveLeavePolicy = (e: FormEvent) => {
+    e.preventDefault();
+    const currentUser = storageService.getCurrentUser();
+    const res = storageService.saveLeavePolicy(leavePolicy, currentUser);
+    if (res.success) {
+      setPolicySavedMsg(res.message);
+      setTimeout(() => setPolicySavedMsg(null), 4000);
+    } else {
+      alert(res.message);
+    }
+  };
 
   // Holidays
   const [holidays, setHolidays] = useState<EthiopianHoliday[]>(() => storageService.getHolidays());
@@ -119,6 +139,17 @@ export const ConfigurationView = ({
   const [connectionResult, setConnectionResult] = useState<{ connected: boolean; latencyMs: number; message: string } | null>(null);
   const [syncingCloud, setSyncingCloud] = useState(false);
   const [syncResult, setSyncResult] = useState<string | null>(null);
+
+  // Logo Management state
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [logoStoragePath, setLogoStoragePath] = useState<string | undefined>(undefined);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isSavingLogo, setIsSavingLogo] = useState(false);
+  const [showRemoveLogoModal, setShowRemoveLogoModal] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [logoSuccess, setLogoSuccess] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleTestConnection = async () => {
     setTestingConnection(true);
@@ -175,6 +206,91 @@ export const ConfigurationView = ({
       setFeedback({ type: 'success', text: res.message });
     } else {
       setFeedback({ type: 'error', text: res.message });
+    }
+  };
+
+  const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLogoError(null);
+    setLogoSuccess(null);
+    setIsUploadingLogo(true);
+    const currentUser = storageService.getCurrentUser();
+    try {
+      const res = await storageService.uploadCompanyLogo(file, currentUser);
+      if (res.success && res.logoUrl) {
+        setLogoFile(file);
+        setLogoPreviewUrl(res.logoUrl);
+        setLogoStoragePath(res.logoStoragePath);
+        setLogoSuccess('Logo uploaded and ready for preview. Click "Save Changes" to apply throughout the HRMS.');
+      } else {
+        setLogoError(res.message);
+      }
+    } catch (err: any) {
+      setLogoError(err.message || 'Error processing logo image.');
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const handleSaveLogo = async () => {
+    if (!isAdmin || !logoPreviewUrl) return;
+    setIsSavingLogo(true);
+    setLogoError(null);
+    const currentUser = storageService.getCurrentUser();
+    try {
+      const res = await storageService.saveCompanyLogo(
+        {
+          logoUrl: logoPreviewUrl,
+          logoStoragePath,
+          logoFileName: logoFile?.name,
+        },
+        currentUser
+      );
+      if (res.success) {
+        setCompanyInfo(storageService.getCompanyInfo());
+        setLogoFile(null);
+        setLogoPreviewUrl(null);
+        setLogoStoragePath(undefined);
+        setLogoSuccess(null);
+        setFeedback({ type: 'success', text: res.message });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      } else {
+        setLogoError(res.message);
+      }
+    } catch (err: any) {
+      setLogoError(err.message || 'Failed to save company logo.');
+    } finally {
+      setIsSavingLogo(false);
+    }
+  };
+
+  const handleCancelLogo = () => {
+    setLogoFile(null);
+    setLogoPreviewUrl(null);
+    setLogoStoragePath(undefined);
+    setLogoError(null);
+    setLogoSuccess(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleRemoveLogo = async () => {
+    if (!isAdmin) return;
+    setShowRemoveLogoModal(false);
+    const currentUser = storageService.getCurrentUser();
+    try {
+      const res = await storageService.removeCompanyLogo(currentUser);
+      if (res.success) {
+        setCompanyInfo(storageService.getCompanyInfo());
+        setLogoFile(null);
+        setLogoPreviewUrl(null);
+        setLogoStoragePath(undefined);
+        setFeedback({ type: 'success', text: res.message });
+      } else {
+        setFeedback({ type: 'error', text: res.message });
+      }
+    } catch (err: any) {
+      setFeedback({ type: 'error', text: err.message || 'Failed to remove logo.' });
     }
   };
 
@@ -479,8 +595,166 @@ export const ConfigurationView = ({
 
       {/* TAB 1: COMPANY INFORMATION */}
       {activeTab === 'company' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-6 space-y-6">
+          {/* SECTION: COMPANY LOGO MANAGEMENT */}
+          <div className="border border-slate-200 rounded-xl p-5 bg-slate-50/60 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-2">
+                  <ImageIcon className="w-4 h-4 text-[#186382]" />
+                  <span>Company Official Logo</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Configure the official corporate logo displayed across all HRMS navigation, header, login, dashboard, and printable reports.
+                </p>
+              </div>
+
+              {/* Status pill */}
+              <div className="flex items-center space-x-2 text-xs shrink-0">
+                {companyInfo.logoUrl ? (
+                  <span className="px-2.5 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center space-x-1">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                    <span>Custom Logo Active</span>
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full font-semibold bg-slate-200 text-slate-700 border border-slate-300 flex items-center space-x-1">
+                    <span>Default Brand Emblem</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Logo Preview and Actions */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-center">
+              {/* Preview Box */}
+              <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl border-2 border-dashed border-slate-300 min-h-[140px] text-center shadow-2xs">
+                {logoPreviewUrl ? (
+                  <div className="space-y-2">
+                    <img
+                      src={logoPreviewUrl}
+                      alt="Logo Preview"
+                      className="max-h-24 max-w-[200px] object-contain mx-auto rounded shadow-2xs"
+                    />
+                    <div className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      Unsaved Preview: {logoFile?.name || 'Uploaded Image'}
+                    </div>
+                  </div>
+                ) : companyInfo.logoUrl ? (
+                  <div className="space-y-2">
+                    <img
+                      src={companyInfo.logoUrl}
+                      alt="Configured Company Logo"
+                      className="max-h-24 max-w-[200px] object-contain mx-auto rounded shadow-2xs"
+                    />
+                    <div className="text-[10px] text-slate-500 font-medium">
+                      {companyInfo.logoFileName || 'Active Corporate Logo'}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2 flex flex-col items-center">
+                    <EthioReLogo size="lg" variant="mark" theme="light" />
+                    <span className="text-[11px] text-slate-500 font-medium">
+                      Official Ethiopian Reinsurance S.C. Emblem
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Controls and Guidelines */}
+              <div className="md:col-span-2 space-y-3 text-xs">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleLogoSelect}
+                  accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  disabled={!isAdmin}
+                />
+
+                <div className="text-slate-600 space-y-1">
+                  <p className="font-semibold text-slate-800">Logo Upload Specifications:</p>
+                  <p className="text-[11px] text-slate-500">
+                    • Accepted formats: <strong>PNG, JPG/JPEG, WebP</strong>
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    • Maximum file size: <strong>5 MB</strong>
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    • Maintains original aspect ratio; transparent backgrounds recommended for seamless print and dark headers.
+                  </p>
+                </div>
+
+                {logoError && (
+                  <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs flex items-center space-x-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
+                    <span>{logoError}</span>
+                  </div>
+                )}
+
+                {logoSuccess && (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span>{logoSuccess}</span>
+                  </div>
+                )}
+
+                {isAdmin && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {/* If previewing unsaved logo: Show Save & Cancel */}
+                    {logoPreviewUrl ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleSaveLogo}
+                          disabled={isSavingLogo}
+                          className="px-4 py-2 bg-[#186382] hover:bg-[#227D9E] text-white font-bold rounded-lg flex items-center space-x-2 shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+                        >
+                          <Save className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{isSavingLogo ? 'Saving Logo...' : 'Save Changes'}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelLogo}
+                          className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-all cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingLogo}
+                          className="px-4 py-2 bg-[#186382] hover:bg-[#227D9E] text-white font-bold rounded-lg flex items-center space-x-2 shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+                        >
+                          <Upload className="w-3.5 h-3.5 text-amber-400" />
+                          <span>{companyInfo.logoUrl ? 'Replace Logo' : 'Upload Logo'}</span>
+                        </button>
+
+                        {companyInfo.logoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setShowRemoveLogoModal(true)}
+                            className="px-3.5 py-2 bg-white hover:bg-rose-50 text-rose-600 border border-rose-300 font-semibold rounded-lg flex items-center space-x-1.5 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Remove Logo</span>
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION: COMPANY PROFILE FIELDS */}
           <form onSubmit={handleSaveCompany} className="max-w-3xl space-y-4 text-xs">
+            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider pb-1 border-b border-slate-100">
+              Corporate Legal & Operational Details
+            </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-2">
                 <label className="block font-semibold text-slate-700 mb-1">Company Official Legal Name</label>
@@ -490,6 +764,17 @@ export const ConfigurationView = ({
                   value={companyInfo.name}
                   onChange={(e) => setCompanyInfo({ ...companyInfo, name: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-hidden font-bold text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Short Name / Brand</label>
+                <input
+                  type="text"
+                  disabled={!isAdmin}
+                  value={companyInfo.shortName || 'EthioRe'}
+                  onChange={(e) => setCompanyInfo({ ...companyInfo, shortName: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg font-semibold focus:ring-2 focus:ring-amber-500 outline-hidden"
                 />
               </div>
 
@@ -531,8 +816,8 @@ export const ConfigurationView = ({
                 <input
                   type="text"
                   disabled={!isAdmin}
-                  value={companyInfo.telephone}
-                  onChange={(e) => setCompanyInfo({ ...companyInfo, telephone: e.target.value })}
+                  value={companyInfo.telephone || companyInfo.phoneNumber || ''}
+                  onChange={(e) => setCompanyInfo({ ...companyInfo, telephone: e.target.value, phoneNumber: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono focus:ring-2 focus:ring-amber-500 outline-hidden"
                 />
               </div>
@@ -564,7 +849,7 @@ export const ConfigurationView = ({
                 <input
                   type="text"
                   disabled={!isAdmin}
-                  value={companyInfo.workingDays}
+                  value={companyInfo.workingDays || 'Monday - Friday (8:00 AM - 5:00 PM)'}
                   onChange={(e) => setCompanyInfo({ ...companyInfo, workingDays: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-hidden"
                 />
@@ -793,72 +1078,226 @@ export const ConfigurationView = ({
 
       {/* TAB 4: LEAVE TYPES SETUP */}
       {activeTab === 'leavetypes' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wider">
-                Ethiopian Labor Proclamation Leave Entitlements
-              </h3>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Statutory day limits and carryover regulations governing Ethiopian Reinsurance.
-              </p>
+        <div className="space-y-6">
+          {/* Administrator-Configurable Annual Leave Carry-Forward Policy Card */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-slate-900 to-[#186382] text-white flex items-center justify-between">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#CCA352] text-slate-950 uppercase tracking-wider">
+                    Statutory Configuration
+                  </span>
+                  <span className="text-xs text-amber-200 font-mono">
+                    Default: 2-Year Carry-Forward Period
+                  </span>
+                </div>
+                <h3 className="font-bold text-sm text-white mt-1 flex items-center space-x-2">
+                  <Sliders className="w-4 h-4 text-[#CCA352]" />
+                  <span>Annual Leave Carry-Forward Policy Settings</span>
+                </h3>
+              </div>
+              {!isAdmin && (
+                <span className="text-[11px] px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-400/30 rounded-lg flex items-center space-x-1">
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Read-Only (Administrator Access Required)</span>
+                </span>
+              )}
             </div>
+
+            <form onSubmit={handleSaveLeavePolicy} className="p-5 space-y-4 text-xs text-slate-800">
+              <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-lg text-blue-900 leading-relaxed">
+                <strong>Policy Mandate:</strong> Calculate carry-forward annual leave using only eligible unused leave balances from the previous two leave years (Years N-1 and N-2). Unused leave balances older than the configured period are automatically excluded from carry-forward calculations for full organizational transparency.
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Carry-Forward Period (Years) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    required
+                    disabled={!isAdmin}
+                    value={leavePolicy.maxCarryForwardYears}
+                    onChange={(e) =>
+                      setLeavePolicy({
+                        ...leavePolicy,
+                        maxCarryForwardYears: Math.max(1, parseInt(e.target.value, 10) || 2),
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold focus:ring-2 focus:ring-amber-500 outline-hidden disabled:bg-slate-100 disabled:text-slate-500"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Default: 2 years (previous two leave years only)
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Current Active Leave Year <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={2020}
+                    max={2035}
+                    required
+                    disabled={!isAdmin}
+                    value={leavePolicy.currentLeaveYear}
+                    onChange={(e) =>
+                      setLeavePolicy({
+                        ...leavePolicy,
+                        currentLeaveYear: parseInt(e.target.value, 10) || 2026,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold focus:ring-2 focus:ring-amber-500 outline-hidden disabled:bg-slate-100 disabled:text-slate-500"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Source of truth for leave year calculations
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Statutory Base Days
+                  </label>
+                  <input
+                    type="number"
+                    min={14}
+                    max={30}
+                    required
+                    disabled={!isAdmin}
+                    value={leavePolicy.statutoryBaseDays}
+                    onChange={(e) =>
+                      setLeavePolicy({
+                        ...leavePolicy,
+                        statutoryBaseDays: parseInt(e.target.value, 10) || 16,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg font-mono font-bold focus:ring-2 focus:ring-amber-500 outline-hidden disabled:bg-slate-100 disabled:text-slate-500"
+                  />
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Ethiopian Labor Proclamation baseline (16d)
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Annual Leave Carry-Forward
+                  </label>
+                  <select
+                    disabled={!isAdmin}
+                    value={leavePolicy.allowCarryForward ? 'true' : 'false'}
+                    onChange={(e) =>
+                      setLeavePolicy({
+                        ...leavePolicy,
+                        allowCarryForward: e.target.value === 'true',
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-semibold focus:ring-2 focus:ring-amber-500 outline-hidden disabled:bg-slate-100 disabled:text-slate-500"
+                  >
+                    <option value="true">Enabled (Allow Carry-Forward)</option>
+                    <option value="false">Disabled (No Carry-Forward)</option>
+                  </select>
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Controls organizational carryover eligibility
+                  </span>
+                </div>
+              </div>
+
+              {policySavedMsg && (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 flex items-center space-x-2 animate-in fade-in">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{policySavedMsg}</span>
+                </div>
+              )}
+
+              {isAdmin && (
+                <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
+                  <span className="text-[11px] text-slate-500">
+                    Policy adjustments are automatically recorded in the official HRMS Audit Trail.
+                  </span>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-[#186382] hover:bg-[#227D9E] text-white font-bold rounded-lg flex items-center space-x-2 shadow-xs transition-all active:scale-[0.99] cursor-pointer"
+                  >
+                    <Save className="w-4 h-4 text-[#CCA352]" />
+                    <span>Save Carry-Forward Policy</span>
+                  </button>
+                </div>
+              )}
+            </form>
           </div>
-          <table className="w-full text-left text-xs divide-y divide-slate-200">
-            <thead className="bg-slate-50 text-slate-600 font-semibold">
-              <tr>
-                <th className="p-3">Leave Type</th>
-                <th className="p-3 text-center">Default Entitlement</th>
-                <th className="p-3 text-center">Paid / Unpaid</th>
-                <th className="p-3 text-center">Carryover Allowed</th>
-                <th className="p-3 text-center">Max Carryover Days</th>
-                {isAdmin && <th className="p-3 text-right">Action</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {leaveTypes.map((lt) => (
-                <tr key={lt.id} className="hover:bg-slate-50">
-                  <td className="p-3 font-semibold text-slate-800">
-                    <div>{lt.name}</div>
-                    {lt.description && <div className="text-[10px] text-slate-400 font-normal">{lt.description}</div>}
-                  </td>
-                  <td className="p-3 text-center font-mono font-bold text-amber-800">{lt.defaultDays} working days</td>
-                  <td className="p-3 text-center">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        lt.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                      }`}
-                    >
-                      {lt.isPaid ? 'Paid' : 'Unpaid'}
-                    </span>
-                  </td>
-                  <td className="p-3 text-center">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        lt.carryoverAllowed ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      {lt.carryoverAllowed ? 'Yes' : 'No'}
-                    </span>
-                  </td>
-                  <td className="p-3 text-center font-mono">{lt.maxCarryoverDays || '—'}</td>
-                  {isAdmin && (
-                    <td className="p-3 text-right">
-                      <button
-                        type="button"
-                        onClick={() => setEditingLeaveType({ ...lt })}
-                        className="inline-flex items-center space-x-1 px-2.5 py-1 text-slate-700 bg-slate-100 hover:bg-amber-100 hover:text-amber-900 rounded font-medium text-[11px] transition-colors"
-                        title="Edit Leave Policy"
-                      >
-                        <Pencil className="w-3 h-3 text-amber-700" />
-                        <span>Edit Policy</span>
-                      </button>
-                    </td>
-                  )}
+
+          {/* Standard Leave Types Table */}
+          <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-xs text-slate-900 uppercase tracking-wider">
+                  Ethiopian Labor Proclamation Leave Entitlements
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Statutory day limits and carryover regulations governing Ethiopian Reinsurance.
+                </p>
+              </div>
+            </div>
+            <table className="w-full text-left text-xs divide-y divide-slate-200">
+              <thead className="bg-slate-50 text-slate-600 font-semibold">
+                <tr>
+                  <th className="p-3">Leave Type</th>
+                  <th className="p-3 text-center">Default Entitlement</th>
+                  <th className="p-3 text-center">Paid / Unpaid</th>
+                  <th className="p-3 text-center">Carryover Allowed</th>
+                  <th className="p-3 text-center">Max Carryover Days</th>
+                  {isAdmin && <th className="p-3 text-right">Action</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {leaveTypes.map((lt) => (
+                  <tr key={lt.id} className="hover:bg-slate-50">
+                    <td className="p-3 font-semibold text-slate-800">
+                      <div>{lt.name}</div>
+                      {lt.description && <div className="text-[10px] text-slate-400 font-normal">{lt.description}</div>}
+                    </td>
+                    <td className="p-3 text-center font-mono font-bold text-amber-800">{lt.defaultDays} working days</td>
+                    <td className="p-3 text-center">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          lt.isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                        }`}
+                      >
+                        {lt.isPaid ? 'Paid' : 'Unpaid'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          lt.carryoverAllowed ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {lt.carryoverAllowed ? 'Yes' : 'No'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center font-mono">{lt.maxCarryoverDays || '—'}</td>
+                    {isAdmin && (
+                      <td className="p-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setEditingLeaveType({ ...lt })}
+                          className="inline-flex items-center space-x-1 px-2.5 py-1 text-slate-700 bg-slate-100 hover:bg-amber-100 hover:text-amber-900 rounded font-medium text-[11px] transition-colors cursor-pointer"
+                          title="Edit Leave Policy"
+                        >
+                          <Pencil className="w-3 h-3 text-amber-700" />
+                          <span>Edit Policy</span>
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

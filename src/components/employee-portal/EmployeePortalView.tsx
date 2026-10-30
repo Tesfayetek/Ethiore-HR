@@ -88,6 +88,8 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
   const [isCheckingVerify, setIsCheckingVerify] = useState(false);
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
 
+  const isAdministrator = currentUser.role === 'Administrator';
+
   // Helper date formatter for leave table e.g. "Jan 10"
   const formatLeaveDate = (dateStr: string) => {
     if (!dateStr) return '—';
@@ -621,14 +623,22 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
             </div>
 
             <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#082836] hover:bg-[#186382] text-white border border-[#CCA352]/40 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5 text-[#CCA352]" />
-                <span>Print Profile</span>
-              </button>
+              {isAdministrator && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    storageService.triggerPrint({
+                      reportType: 'Personal Profile Dossier',
+                      customTitle: `${employee?.fullName || currentUser.displayName} (${employee?.employeeId || currentUser.id})`,
+                    })
+                  }
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#082836] hover:bg-[#186382] text-white border border-[#CCA352]/40 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  title="Print employee dossier (Administrator Only)"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#CCA352]" />
+                  <span>Print Profile</span>
+                </button>
+              )}
               <span className="px-3 py-1 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full">
                 Active Employee
               </span>
@@ -781,16 +791,24 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
           <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 no-print">
               <h3 className="text-sm font-bold text-[#0E3D52]">Personal Leave History</h3>
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                >
-                  <Printer className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Print Leave Statement</span>
-                </button>
-              </div>
+              {isAdministrator && (
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      storageService.triggerPrint({
+                        reportType: 'Personal Leave Statement',
+                        customTitle: `${employee?.fullName || currentUser.displayName} Leave History`,
+                      })
+                    }
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                    title="Print leave statement (Administrator Only)"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Print Leave Statement</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             <ReportPrintHeader
@@ -951,14 +969,22 @@ export const EmployeePortalView: React.FC<EmployeePortalViewProps> = ({
               <h3 className="text-sm font-bold text-[#0E3D52]">
                 Personal Attendance Register & Timecard
               </h3>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                <span>Print Attendance Timecard</span>
-              </button>
+              {isAdministrator && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    storageService.triggerPrint({
+                      reportType: 'Personal Attendance Timecard',
+                      customTitle: `${employee?.fullName || currentUser.displayName} Timecard`,
+                    })
+                  }
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                  title="Print attendance timecard (Administrator Only)"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Print Attendance Timecard</span>
+                </button>
+              )}
             </div>
 
             <ReportPrintHeader

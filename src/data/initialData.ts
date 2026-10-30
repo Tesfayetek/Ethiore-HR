@@ -253,6 +253,15 @@ export const initialUsers: User[] = [
     avatar: DEFAULT_FACELESS_AVATAR,
   },
   {
+    id: 'usr-hr-officer',
+    email: 'hrofficer@ethiopianre.com',
+    displayName: 'HR Officer (Records & Leave)',
+    role: 'HR Officer',
+    createdAt: '2026-01-01T08:00:00Z',
+    status: 'Active',
+    avatar: DEFAULT_FACELESS_AVATAR,
+  },
+  {
     id: 'usr-employee-demo',
     email: 'employee@ethiopianre.com',
     displayName: 'EthioRe Staff Member',

@@ -4,6 +4,7 @@ import {
   Plus,
   FileSpreadsheet,
   Printer,
+  Download,
   Filter,
   Eye,
   Edit2,
@@ -138,6 +139,50 @@ export const EmployeeMasterView = ({
     setIsDeleting(false);
   };
 
+  // Administrator-Only Print
+  const handlePrint = () => {
+    storageService.triggerPrint({
+      reportType: 'Employee Master Data',
+      customTitle: 'Workforce Master Register',
+    });
+  };
+
+  // Administrator-Only CSV Export
+  const handleExportCSV = () => {
+    const headers = [
+      'Employee ID',
+      'Full Name',
+      'Department',
+      'Position',
+      'Gender',
+      'Employment Type',
+      'Employment Date',
+      'Work Location',
+      'Corporate Email',
+      'Phone Number',
+      'Status',
+    ];
+    const rows = filteredEmployees.map((emp) => [
+      emp.employeeId,
+      emp.fullName,
+      emp.department,
+      emp.position,
+      emp.gender,
+      emp.employmentType,
+      emp.employmentDate,
+      emp.workLocation || 'Head Office (Addis Ababa)',
+      emp.emailAddress,
+      emp.phoneNumber,
+      emp.status,
+    ]);
+    storageService.exportDataToCsv({
+      filename: `EthioRe_Employee_Master_Data_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: 'Employee Master Data',
+    });
+  };
+
   // Role boundary enforcement
   if (userRole === 'Employee') {
     return (
@@ -197,16 +242,32 @@ export const EmployeeMasterView = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 shadow-2xs transition-colors cursor-pointer"
-          >
-            <Printer className="w-4 h-4 text-[#186382]" />
-            <span>Print</span>
-          </button>
+          {/* Strictly Administrator-Only Print and CSV Export */}
+          {userRole === 'Administrator' && (
+            <>
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="inline-flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 shadow-2xs transition-colors cursor-pointer"
+                title="Export filtered employee master data to CSV (Administrator Only)"
+              >
+                <Download className="w-4 h-4 text-[#186382]" />
+                <span>Export CSV</span>
+              </button>
 
-          {(userRole === 'Administrator' || userRole === 'HR Admin') && (
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 shadow-2xs transition-colors cursor-pointer"
+                title="Print employee master register (Administrator Only)"
+              >
+                <Printer className="w-4 h-4 text-[#186382]" />
+                <span>Print</span>
+              </button>
+            </>
+          )}
+
+          {(userRole === 'Administrator' || userRole === 'HR Admin' || userRole === 'HR Officer') && (
             <>
               <button
                 type="button"

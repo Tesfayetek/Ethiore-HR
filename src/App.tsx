@@ -132,6 +132,53 @@ export default function App() {
     });
   }, []);
 
+  // Global Security Guard: Enforce Administrator-only printing at the window/browser level
+  useEffect(() => {
+    const nativePrint = window.print;
+    const securePrint = function () {
+      const activeUser = storageService.getCurrentUser();
+      if (!activeUser || activeUser.role !== 'Administrator') {
+        storageService.addAuditLog(
+          'UNAUTHORIZED_PRINT_ATTEMPT',
+          'Reports',
+          `SECURITY ALERT: Direct window.print() execution blocked. User: ${activeUser?.displayName || 'Unknown'}, Role: '${activeUser?.role || 'Guest'}'. Administrator role is strictly required.`,
+          undefined,
+          activeUser || undefined
+        );
+        alert(
+          `Access Denied: Only users with the Administrator role are authorized to print reports in Ethiopian Reinsurance HRMS. (Current role: ${activeUser?.role || 'Unauthenticated'})`
+        );
+        return;
+      }
+      nativePrint.call(window);
+    };
+    window.print = securePrint;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+        const activeUser = storageService.getCurrentUser();
+        if (!activeUser || activeUser.role !== 'Administrator') {
+          e.preventDefault();
+          e.stopPropagation();
+          storageService.addAuditLog(
+            'UNAUTHORIZED_PRINT_ATTEMPT',
+            'Reports',
+            `SECURITY ALERT: Keyboard print shortcut (Ctrl/Cmd+P) blocked. User: ${activeUser?.displayName || 'Unknown'}, Role: '${activeUser?.role || 'Guest'}'.`,
+            undefined,
+            activeUser || undefined
+          );
+          alert('Access Denied: Only users with the Administrator role are authorized to print reports in Ethiopian Reinsurance HRMS.');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.print = nativePrint;
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, []);
+
   /**
    * Enforces role-based route protection and synchronizes browser URL.
    */
@@ -151,8 +198,8 @@ export default function App() {
       if (user.role === 'Employee') {
         // Employees are strictly restricted to My Staff Portal
         resolvedNav = 'my_portal';
-      } else if (user.role === 'HR Admin') {
-        // HR Admin cannot access Configuration Settings
+      } else if (user.role === 'HR Admin' || user.role === 'HR Officer') {
+        // HR Admin & HR Officer cannot access Configuration Settings
         if (resolvedNav === 'configuration') {
           resolvedNav = 'dashboard';
         }
@@ -356,6 +403,20 @@ export default function App() {
     }
   };
 
+  const handleUserSwitch = useCallback(
+    (targetRole: UserRole) => {
+      const users = storageService.getUsers();
+      const targetUser = users.find((u) => u.role === targetRole) || users[0];
+      if (targetUser) {
+        storageService.setCurrentUser(targetUser.id);
+        setCurrentUser(targetUser);
+        const dest: MainNavId = targetUser.role === 'Employee' ? 'my_portal' : 'dashboard';
+        enforceRouteAndUrl(targetUser, dest, undefined, false);
+      }
+    },
+    [enforceRouteAndUrl]
+  );
+
   // 1. Loading screen while checking authentication state to prevent any protected content from flashing
   if (isAuthChecking) {
     return <AuthLoadingScreen />;
@@ -381,6 +442,7 @@ export default function App() {
       {/* Top Application Header with User Info, Mobile Toggle and Sign Out */}
       <Header
         currentUser={currentUser}
+        onUserSwitch={handleUserSwitch}
         activeModuleTitle={getModuleTitle()}
         onLogout={handleSignOut}
         isMobileSidebarOpen={isMobileSidebarOpen}

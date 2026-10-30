@@ -36,8 +36,14 @@ export const ViewLeaveModal: React.FC<ViewLeaveModalProps> = ({
   const employeeBalances = storageService.getEmployeeLeaveBalances(leave.employeeId);
   const matchedBalance = employeeBalances.find((b) => b.leaveType === leave.leaveType);
 
+  const currentUser = storageService.getCurrentUser();
+  const isAdministrator = currentUser?.role === 'Administrator';
+
   const handlePrint = () => {
-    window.print();
+    storageService.triggerPrint({
+      reportType: 'Individual Leave Application Docket',
+      customTitle: `${leave.employeeName} - ${leave.leaveType} (${leave.id})`,
+    });
   };
 
   return (
@@ -221,14 +227,19 @@ export const ViewLeaveModal: React.FC<ViewLeaveModalProps> = ({
 
         {/* Modal Footer Actions */}
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between no-print">
-          <button
-            type="button"
-            onClick={handlePrint}
-            className="inline-flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors"
-          >
-            <Printer className="w-4 h-4 text-[#186382]" />
-            <span>Print</span>
-          </button>
+          <div>
+            {isAdministrator && (
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="inline-flex items-center space-x-1.5 px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                title="Print leave docket (Administrator Only)"
+              >
+                <Printer className="w-4 h-4 text-[#186382]" />
+                <span>Print</span>
+              </button>
+            )}
+          </div>
 
           <div className="flex items-center space-x-2">
             {onEdit && (

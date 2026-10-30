@@ -47,6 +47,7 @@ export const EmployeeDetailModal = ({
   // Retrieve employee attendance records
   const allAttendance = storageService.getAttendanceRecords();
   const employeeAttendance = allAttendance.filter((a) => a.employeeId === employee.employeeId);
+  const isAdministrator = storageService.isAdministrator();
 
   return (
     <div
@@ -85,14 +86,21 @@ export const EmployeeDetailModal = ({
           </div>
 
           <div className="flex items-center space-x-2">
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#082836] hover:bg-[#227D9E] text-white border border-amber-500/40 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
-            >
-              <Printer className="w-3.5 h-3.5 text-amber-400" />
-              <span>Print Profile</span>
-            </button>
+            {isAdministrator && (
+              <button
+                type="button"
+                onClick={() =>
+                  storageService.triggerPrint({
+                    reportType: 'Employee Profile',
+                    customTitle: `Employee Profile - ${employee.fullName}`,
+                  })
+                }
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#082836] hover:bg-[#227D9E] text-white border border-amber-500/40 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5 text-amber-400" />
+                <span>Print Profile</span>
+              </button>
+            )}
 
             <button
               type="button"

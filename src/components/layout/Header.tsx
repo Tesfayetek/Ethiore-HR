@@ -25,6 +25,7 @@ interface HeaderProps {
 
 export const Header = ({
   currentUser,
+  onUserSwitch,
   activeModuleTitle,
   onLogout,
   isMobileSidebarOpen,
@@ -97,7 +98,7 @@ export const Header = ({
               </div>
             </div>
 
-            {/* Authenticated User Information (No role selection) */}
+            {/* Authenticated User Information */}
             <div className="flex items-center space-x-2.5 px-3 py-1.5 bg-[#082836]/90 rounded-lg border border-[#186382]/40 text-xs">
               <FacelessAvatar
                 src={userPhoto}
@@ -109,13 +110,27 @@ export const Header = ({
                   {currentUser.displayName}
                 </div>
                 <div className="text-[11px] text-[#CCA352] font-mono flex items-center space-x-1.5 mt-0.5">
-                  {displayEmployeeId ? (
-                    <span className="font-semibold text-[#E2BE6C]">{displayEmployeeId}</span>
+                  {onUserSwitch ? (
+                    <select
+                      value={currentUser.role}
+                      onChange={(e) => onUserSwitch(e.target.value as UserRole)}
+                      className="bg-transparent text-[#E2BE6C] font-semibold text-[10px] outline-hidden cursor-pointer hover:underline border-none p-0 focus:ring-0"
+                      title="Switch test role persona"
+                    >
+                      <option value="Administrator" className="bg-[#082836] text-white">Administrator</option>
+                      <option value="HR Admin" className="bg-[#082836] text-white">HR Admin</option>
+                      <option value="HR Officer" className="bg-[#082836] text-white">HR Officer</option>
+                      <option value="Employee" className="bg-[#082836] text-white">Employee</option>
+                    </select>
                   ) : (
                     <span className="text-slate-300 font-sans text-[10px]">{currentUser.role}</span>
                   )}
-                  <span className="text-slate-600">•</span>
-                  <span className="text-slate-300 font-sans text-[10px]">{currentUser.role}</span>
+                  {displayEmployeeId && (
+                    <>
+                      <span className="text-slate-600">•</span>
+                      <span className="font-semibold text-[#E2BE6C]">{displayEmployeeId}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -230,31 +230,40 @@ export const AttendanceView = ({
       .sort((a, b) => b.date.localeCompare(a.date));
   }, [attendanceRecords, currentReportEmployee]);
 
+  const isAdministrator = userRole === 'Administrator';
+
+  const handlePrint = (reportType = 'Attendance Register', title?: string) => {
+    storageService.triggerPrint({
+      reportType,
+      customTitle: title || `Official Attendance Record (${selectedDate})`,
+    });
+  };
+
   const handleExportActiveAttendanceReportCSV = () => {
-    let header = '';
-    let rows = '';
+    let headers: string[] = [];
+    let rows: (string | number)[][] = [];
     if (selectedAttReport === 'daily') {
-      header = 'Date,Employee ID,Employee Name,Department,Check-In,Check-Out,Hours,Status,Notes\\n';
-      rows = dailyReportData.map(r => `"${r.date}","${r.employeeId}","${r.employeeName}","${r.department}","${r.checkIn}","${r.checkOut}",${r.workingHours},"${r.status}","${r.notes || ''}"`).join('\\n');
+      headers = ['Date', 'Employee ID', 'Employee Name', 'Department', 'Check-In', 'Check-Out', 'Hours', 'Status', 'Notes'];
+      rows = dailyReportData.map(r => [r.date, r.employeeId, r.employeeName, r.department, r.checkIn, r.checkOut, r.workingHours, r.status, r.notes || '']);
     } else if (selectedAttReport === 'monthly') {
-      header = 'Employee ID,Employee Name,Department,Position,Present Days,Late Days,Half Days,Absent Days,Total Hours,Punctuality %\\n';
-      rows = monthlyReportData.map(r => `"${r.employeeId}","${r.employeeName}","${r.department}","${r.position}",${r.presentDays},${r.lateDays},${r.halfDays},${r.absentDays},${r.totalHours},${r.punctuality}%`).join('\\n');
+      headers = ['Employee ID', 'Employee Name', 'Department', 'Position', 'Present Days', 'Late Days', 'Half Days', 'Absent Days', 'Total Hours', 'Punctuality %'];
+      rows = monthlyReportData.map(r => [r.employeeId, r.employeeName, r.department, r.position, r.presentDays, r.lateDays, r.halfDays, r.absentDays, r.totalHours, `${r.punctuality}%`]);
     } else if (selectedAttReport === 'department') {
-      header = 'Department,Department Head,Staff Count,Present,Late,Absent,Attendance Rate %\\n';
-      rows = departmentReportData.map(r => `"${r.departmentName}","${r.manager}",${r.staffCount},${r.presentCount},${r.lateCount},${r.absentCount},${r.attendanceRate}%`).join('\\n');
+      headers = ['Department', 'Department Head', 'Staff Count', 'Present', 'Late', 'Absent', 'Attendance Rate %'];
+      rows = departmentReportData.map(r => [r.departmentName, r.manager, r.staffCount, r.presentCount, r.lateCount, r.absentCount, `${r.attendanceRate}%`]);
     } else if (selectedAttReport === 'late_absence') {
-      header = 'Date,Employee ID,Employee Name,Department,Check-In,Status,Notes\\n';
-      rows = lateAbsenceReportData.map(r => `"${r.date}","${r.employeeId}","${r.employeeName}","${r.department}","${r.checkIn}","${r.status}","${r.notes || ''}"`).join('\\n');
+      headers = ['Date', 'Employee ID', 'Employee Name', 'Department', 'Check-In', 'Status', 'Notes'];
+      rows = lateAbsenceReportData.map(r => [r.date, r.employeeId, r.employeeName, r.department, r.checkIn, r.status, r.notes || '']);
     } else if (selectedAttReport === 'employee') {
-      header = 'Date,Employee ID,Employee Name,Check-In,Check-Out,Hours,Status,Notes\\n';
-      rows = employeeAttendanceData.map(r => `"${r.date}","${r.employeeId}","${r.employeeName}","${r.checkIn}","${r.checkOut}",${r.workingHours},"${r.status}","${r.notes || ''}"`).join('\\n');
+      headers = ['Date', 'Employee ID', 'Employee Name', 'Check-In', 'Check-Out', 'Hours', 'Status', 'Notes'];
+      rows = employeeAttendanceData.map(r => [r.date, r.employeeId, r.employeeName, r.checkIn, r.checkOut, r.workingHours, r.status, r.notes || '']);
     }
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ethiore_attendance_${selectedAttReport}_report_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    storageService.exportDataToCsv({
+      filename: `EthioRe_attendance_${selectedAttReport}_report_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: `Attendance ${selectedAttReport.toUpperCase()} Report`,
+    });
   };
 
   useEffect(() => {
@@ -349,39 +358,44 @@ export const AttendanceView = ({
   }, [attendanceRecords]);
 
   const handleExportExceptionsCSV = () => {
-    const header = 'Date,Employee ID,Employee Name,Department,Check-In,Check-Out,Status,Exception Reason/Notes\n';
-    const rows = filteredExceptions
-      .map(
-        (r) =>
-          `"${r.date}","${r.employeeId}","${r.employeeName}","${r.department}","${r.checkIn || '-'}","${
-            r.checkOut || '-'
-          }","${r.status}","${r.notes || ''}"`
-      )
-      .join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ethiore_attendance_exceptions_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    const headers = ['Date', 'Employee ID', 'Employee Name', 'Department', 'Check-In', 'Check-Out', 'Status', 'Exception Reason/Notes'];
+    const rows = filteredExceptions.map((r) => [
+      r.date,
+      r.employeeId,
+      r.employeeName,
+      r.department,
+      r.checkIn || '-',
+      r.checkOut || '-',
+      r.status,
+      r.notes || '',
+    ]);
+    storageService.exportDataToCsv({
+      filename: `EthioRe_attendance_exceptions_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: 'Attendance Exceptions Report',
+    });
   };
 
   const handleExportCorrectionsCSV = () => {
-    const header = 'Date,Employee ID,Employee Name,Department,Check-In,Check-Out,Hours,Status,Correction Notes\n';
-    const rows = filteredCorrections
-      .map(
-        (r) =>
-          `"${r.date}","${r.employeeId}","${r.employeeName}","${r.department}","${r.checkIn || '-'}","${
-            r.checkOut || '-'
-          }",${r.workingHours || 0},"${r.status}","${r.notes || ''}"`
-      )
-      .join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ethiore_attendance_corrections_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    const headers = ['Date', 'Employee ID', 'Employee Name', 'Department', 'Check-In', 'Check-Out', 'Hours', 'Status', 'Correction Notes'];
+    const rows = filteredCorrections.map((r) => [
+      r.date,
+      r.employeeId,
+      r.employeeName,
+      r.department,
+      r.checkIn || '-',
+      r.checkOut || '-',
+      r.workingHours || 0,
+      r.status,
+      r.notes || '',
+    ]);
+    storageService.exportDataToCsv({
+      filename: `EthioRe_attendance_corrections_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: 'Attendance Corrections Audit',
+    });
   };
 
   // Handle Kiosk Check-In
@@ -490,19 +504,24 @@ export const AttendanceView = ({
 
   // Export Attendance CSV
   const handleExportAttendanceCSV = () => {
-    const header = 'Date,Employee ID,Employee Name,Department,Check-In,Check-Out,Hours,Status,Notes\n';
-    const rows = attendanceRecords
-      .map(
-        (r) =>
-          `"${r.date}","${r.employeeId}","${r.employeeName}","${r.department}","${r.checkIn}","${r.checkOut}",${r.workingHours},"${r.status}","${r.notes || ''}"`
-      )
-      .join('\n');
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ethiore_attendance_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    const headers = ['Date', 'Employee ID', 'Employee Name', 'Department', 'Check-In', 'Check-Out', 'Hours', 'Status', 'Notes'];
+    const rows = attendanceRecords.map((r) => [
+      r.date,
+      r.employeeId,
+      r.employeeName,
+      r.department,
+      r.checkIn,
+      r.checkOut,
+      r.workingHours,
+      r.status,
+      r.notes || '',
+    ]);
+    storageService.exportDataToCsv({
+      filename: `EthioRe_attendance_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: 'Attendance Register Records',
+    });
   };
 
   return (
@@ -592,24 +611,28 @@ export const AttendanceView = ({
               <h3 className="text-sm font-bold text-slate-900">Daily Attendance Register</h3>
               <p className="text-xs text-slate-500">Live operational registry of arrivals, departures, and active statuses.</p>
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={handleExportAttendanceCSV}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export CSV</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
-              >
-                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                <span>Print</span>
-              </button>
-            </div>
+            {isAdministrator && (
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleExportAttendanceCSV}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  title="Export attendance records to CSV (Administrator Only)"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#186382]" />
+                  <span>Export CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrint('Daily Attendance Register')}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                  title="Print attendance register (Administrator Only)"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Print</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Register Filter Controls */}
@@ -809,14 +832,17 @@ export const AttendanceView = ({
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer ml-1"
-                >
-                  <Printer className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Print Calendar</span>
-                </button>
+                {isAdministrator && (
+                  <button
+                    type="button"
+                    onClick={() => handlePrint('Monthly Attendance Calendar', `Schedule for ${calendarDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })}`)}
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer ml-1"
+                    title="Print attendance calendar (Administrator Only)"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Print Calendar</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -1029,24 +1055,28 @@ export const AttendanceView = ({
               </p>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={handleExportExceptionsCSV}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export CSV</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                <span>Print Exceptions</span>
-              </button>
-            </div>
+            {isAdministrator && (
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleExportExceptionsCSV}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                  title="Export exceptions to CSV (Administrator Only)"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#186382]" />
+                  <span>Export CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrint('Attendance Exceptions Report')}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                  title="Print attendance exceptions (Administrator Only)"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Print Exceptions</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Exceptions Filter Controls */}
@@ -1226,24 +1256,28 @@ export const AttendanceView = ({
               </p>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={handleExportCorrectionsCSV}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export CSV</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                <span>Print Corrections</span>
-              </button>
-            </div>
+            {isAdministrator && (
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleExportCorrectionsCSV}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                  title="Export corrections audit to CSV (Administrator Only)"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#186382]" />
+                  <span>Export CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrint('Attendance Corrections Audit')}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                  title="Print attendance corrections (Administrator Only)"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Print Corrections</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Corrections Filter Controls */}
@@ -1523,24 +1557,28 @@ export const AttendanceView = ({
                 Summary of days present, lateness incidents, and total working hours per employee.
               </p>
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={handleExportAttendanceCSV}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export Summary CSV</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
-              >
-                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                <span>Print</span>
-              </button>
-            </div>
+            {isAdministrator && (
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleExportAttendanceCSV}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                  title="Export monthly summary to CSV (Administrator Only)"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#186382]" />
+                  <span>Export Summary CSV</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrint('Monthly Attendance Aggregation Report')}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                  title="Print monthly summary report (Administrator Only)"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Print</span>
+                </button>
+              </div>
+            )}
           </div>
 
           <ReportPrintHeader
@@ -1624,14 +1662,17 @@ export const AttendanceView = ({
               </p>
             </div>
             <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors"
-              >
-                <Printer className="w-3.5 h-3.5 text-[#186382]" />
-                <span>Print</span>
-              </button>
+              {isAdministrator && (
+                <button
+                  type="button"
+                  onClick={() => handlePrint('Overtime Records Report')}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
+                  title="Print overtime records (Administrator Only)"
+                >
+                  <Printer className="w-3.5 h-3.5 text-[#186382]" />
+                  <span>Print</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -1753,24 +1794,28 @@ export const AttendanceView = ({
               </p>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={handleExportActiveAttendanceReportCSV}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export Active Report</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-bold rounded-lg shadow-xs transition-colors"
-              >
-                <Printer className="w-3.5 h-3.5 text-amber-400" />
-                <span>Print</span>
-              </button>
-            </div>
+            {isAdministrator && (
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleExportActiveAttendanceReportCSV}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                  title="Export active attendance report to CSV (Administrator Only)"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#186382]" />
+                  <span>Export Active Report</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePrint(`Attendance - ${selectedAttReport.toUpperCase()} Report`)}
+                  className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-bold rounded-lg shadow-xs transition-colors cursor-pointer"
+                  title="Print attendance report (Administrator Only)"
+                >
+                  <Printer className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Print</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Report Selection Switcher Tabs */}

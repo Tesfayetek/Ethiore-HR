@@ -129,25 +129,58 @@ export const LeaveBalanceTab: React.FC<LeaveBalanceTabProps> = ({
     }
   };
 
-  const handleExportCSV = () => {
-    const header =
-      'Employee ID,Employee Name,Department,Leave Type,Current Leave Year,Current Year Entitlement,Prev Year Unused (N-1),Second Prev Unused (N-2),Total Eligible Carry Forward,Current Year Used,Total Available Days,Expired Older Days\n';
-    const rows = filteredBalances
-      .map((b) => {
-        const emp = employees.find((e) => e.employeeId === b.employeeId);
-        const name = b.employeeName || emp?.fullName || b.employeeId;
-        const dept = emp?.department || 'N/A';
-        const bd = b.carryForwardBreakdown;
-        return `"${b.employeeId}","${name}","${dept}","${b.leaveType}",${bd?.currentLeaveYear ?? b.currentLeaveYear ?? 2026},${bd?.currentYearEntitlement ?? b.currentYearEntitlement ?? b.entitled},${bd?.previousYearUnused ?? b.previousYearUnused ?? 0},${bd?.secondPreviousYearUnused ?? b.secondPreviousYearUnused ?? 0},${bd?.totalEligibleCarryForward ?? b.totalEligibleCarryForward ?? 0},${bd?.currentYearUsed ?? b.currentYearUsed ?? b.taken},${bd?.availableAnnualLeave ?? b.availableAnnualLeave ?? b.remaining},${bd?.expiredOlderLeave ?? b.expiredOlderLeave ?? 0}`;
-      })
-      .join('\n');
+  const currentUser = storageService.getCurrentUser();
+  const isAdministrator = currentUser?.role === 'Administrator';
 
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ethiore_leave_balances_carryforward_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+  const handlePrint = () => {
+    storageService.triggerPrint({
+      reportType: 'Leave Balances & Carry-Forward',
+      customTitle: 'Annual Leave Carry-Forward Audit & Entitlement Summary',
+    });
+  };
+
+  const handleExportCSV = () => {
+    const headers = [
+      'Employee ID',
+      'Employee Name',
+      'Department',
+      'Leave Type',
+      'Current Leave Year',
+      'Current Year Entitlement',
+      'Prev Year Unused (N-1)',
+      'Second Prev Unused (N-2)',
+      'Total Eligible Carry Forward',
+      'Current Year Used',
+      'Total Available Days',
+      'Expired Older Days',
+    ];
+    const rows = filteredBalances.map((b) => {
+      const emp = employees.find((e) => e.employeeId === b.employeeId);
+      const name = b.employeeName || emp?.fullName || b.employeeId;
+      const dept = emp?.department || 'N/A';
+      const bd = b.carryForwardBreakdown;
+      return [
+        b.employeeId,
+        name,
+        dept,
+        b.leaveType,
+        bd?.currentLeaveYear ?? b.currentLeaveYear ?? 2026,
+        bd?.currentYearEntitlement ?? b.currentYearEntitlement ?? b.entitled,
+        bd?.previousYearUnused ?? b.previousYearUnused ?? 0,
+        bd?.secondPreviousYearUnused ?? b.secondPreviousYearUnused ?? 0,
+        bd?.totalEligibleCarryForward ?? b.totalEligibleCarryForward ?? 0,
+        bd?.currentYearUsed ?? b.currentYearUsed ?? b.taken,
+        bd?.availableAnnualLeave ?? b.availableAnnualLeave ?? b.remaining,
+        bd?.expiredOlderLeave ?? b.expiredOlderLeave ?? 0,
+      ];
+    });
+
+    storageService.exportDataToCsv({
+      filename: `EthioRe_leave_balances_carryforward_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: 'Leave Balances & Carry-Forward',
+    });
   };
 
   return (
@@ -270,24 +303,28 @@ export const LeaveBalanceTab: React.FC<LeaveBalanceTabProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-bold rounded-lg transition-colors shadow-xs cursor-pointer"
-          >
-            <Printer className="w-3.5 h-3.5 text-amber-400" />
-            <span>Print</span>
-          </button>
-        </div>
+        {isAdministrator && (
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+              title="Export leave balances to CSV (Administrator Only)"
+            >
+              <Download className="w-3.5 h-3.5 text-[#186382]" />
+              <span>Export CSV</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-bold rounded-lg transition-colors shadow-xs cursor-pointer"
+              title="Print leave balances report (Administrator Only)"
+            >
+              <Printer className="w-3.5 h-3.5 text-amber-400" />
+              <span>Print</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Filter Bar */}

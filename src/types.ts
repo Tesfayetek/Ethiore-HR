@@ -1,4 +1,4 @@
-export type UserRole = 'Administrator' | 'HR Admin' | 'Employee';
+export type UserRole = 'Administrator' | 'HR Admin' | 'HR Officer' | 'Employee';
 
 export interface User {
   id: string;
@@ -245,7 +245,7 @@ export interface AuditLog {
   userId?: string;
   userRole: UserRole;
   action: string;
-  module: 'Employee Master Data' | 'Leave Management' | 'Attendance' | 'Configuration' | 'User Management';
+  module: 'Employee Master Data' | 'Leave Management' | 'Attendance' | 'Configuration' | 'User Management' | 'Reports';
   details: string;
   recordType?: string;
   recordId?: string;

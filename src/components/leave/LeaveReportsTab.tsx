@@ -203,68 +203,117 @@ export const LeaveReportsTab: React.FC<LeaveReportsTabProps> = ({
     });
   }, [validRecords, selectedYear]);
 
-  // Export current active report to CSV
+  const currentUser = storageService.getCurrentUser();
+  const isAdministrator = currentUser?.role === 'Administrator';
+
+  // Administrator-Only Print
+  const handlePrint = () => {
+    storageService.triggerPrint({
+      reportType: `Leave Management - ${selectedReport.toUpperCase()} Report`,
+      customTitle: `Statutory & Operational Leave Report (${selectedReport})`,
+    });
+  };
+
+  // Administrator-Only CSV Export
   const handleExportCSV = () => {
-    let header = '';
-    let rows = '';
-    const dateStr = new Date().toISOString().split('T')[0];
+    let headers: string[] = [];
+    let rows: (string | number)[][] = [];
 
     if (selectedReport === 'employee') {
-      header = 'Employee ID,Employee Name,Department,Position,Status,Records Count,Total Days Taken,Entitled Days,Remaining Days\n';
-      rows = employeeReportData
-        .map(
-          (r) =>
-            `"${r.employeeId}","${r.employeeName}","${r.department}","${r.position}","${r.status}",${r.recordsCount},${r.totalDaysTaken},${r.totalEntitled},${r.totalRemaining}`
-        )
-        .join('\n');
+      headers = ['Employee ID', 'Employee Name', 'Department', 'Position', 'Status', 'Records Count', 'Total Days Taken', 'Entitled Days', 'Remaining Days'];
+      rows = employeeReportData.map((r) => [
+        r.employeeId,
+        r.employeeName,
+        r.department,
+        r.position,
+        r.status,
+        r.recordsCount,
+        r.totalDaysTaken,
+        r.totalEntitled,
+        r.totalRemaining,
+      ]);
     } else if (selectedReport === 'department') {
-      header = 'Department Name,Manager,Staff Count,Leaves Recorded,Total Days Taken,Average Days Per Employee\n';
-      rows = departmentReportData
-        .map(
-          (r) =>
-            `"${r.departmentName}","${r.manager}",${r.staffCount},${r.leavesCount},${r.totalDaysTaken},${r.avgDaysPerEmployee}`
-        )
-        .join('\n');
+      headers = ['Department Name', 'Manager', 'Staff Count', 'Leaves Recorded', 'Total Days Taken', 'Average Days Per Employee'];
+      rows = departmentReportData.map((r) => [
+        r.departmentName,
+        r.manager,
+        r.staffCount,
+        r.leavesCount,
+        r.totalDaysTaken,
+        r.avgDaysPerEmployee,
+      ]);
     } else if (selectedReport === 'leaveType') {
-      header = 'Leave Type Name,Default Days,Statutory Rule,Filings Count,Unique Staff Count,Total Days Utilized\n';
-      rows = leaveTypeReportData
-        .map(
-          (r) =>
-            `"${r.leaveTypeName}",${r.defaultDays},"${r.statutoryRule}",${r.filingsCount},${r.uniqueStaffCount},${r.totalDaysUtilized}`
-        )
-        .join('\n');
+      headers = ['Leave Type Name', 'Default Days', 'Statutory Rule', 'Filings Count', 'Unique Staff Count', 'Total Days Utilized'];
+      rows = leaveTypeReportData.map((r) => [
+        r.leaveTypeName,
+        r.defaultDays,
+        r.statutoryRule,
+        r.filingsCount,
+        r.uniqueStaffCount,
+        r.totalDaysUtilized,
+      ]);
     } else if (selectedReport === 'balance') {
-      header = 'Employee ID,Employee Name,Department,Leave Type,Current Leave Year,Current Entitlement,Prev Year Unused (N-1),Second Prev Unused (N-2),Total Eligible Carry Forward,Current Year Used,Total Available Days,Expired Older Days\n';
-      rows = balanceReportData
-        .map(
-          (r) =>
-            `"${r.employeeId}","${r.employeeName}","${r.department}","${r.leaveType}",${r.currentLeaveYear},${r.entitled},${r.previousYearUnused},${r.secondPreviousYearUnused},${r.totalEligibleCarryForward},${r.taken},${r.remaining},${r.expiredOlderLeave}`
-        )
-        .join('\n');
+      headers = [
+        'Employee ID',
+        'Employee Name',
+        'Department',
+        'Leave Type',
+        'Current Leave Year',
+        'Current Entitlement',
+        'Prev Year Unused (N-1)',
+        'Second Prev Unused (N-2)',
+        'Total Eligible Carry Forward',
+        'Current Year Used',
+        'Total Available Days',
+        'Expired Older Days',
+      ];
+      rows = balanceReportData.map((r) => [
+        r.employeeId,
+        r.employeeName,
+        r.department,
+        r.leaveType,
+        r.currentLeaveYear,
+        r.entitled,
+        r.previousYearUnused,
+        r.secondPreviousYearUnused,
+        r.totalEligibleCarryForward,
+        r.taken,
+        r.remaining,
+        r.expiredOlderLeave,
+      ]);
     } else if (selectedReport === 'history') {
-      header = 'Leave ID,Employee ID,Employee Name,Department,Leave Type,Start Date,End Date,Days,Status,Reason,Created By,Created Date\n';
-      rows = historyReportData
-        .map(
-          (r) =>
-            `"${r.id}","${r.employeeId}","${r.employeeName}","${r.department}","${r.leaveType}","${r.startDate}","${r.endDate}",${r.days},"${r.status}","${r.reason.replace(/"/g, '""')}","${r.createdBy}","${r.createdDate}"`
-        )
-        .join('\n');
+      headers = ['Leave ID', 'Employee ID', 'Employee Name', 'Department', 'Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Reason', 'Created By', 'Created Date'];
+      rows = historyReportData.map((r) => [
+        r.id,
+        r.employeeId,
+        r.employeeName,
+        r.department,
+        r.leaveType,
+        r.startDate,
+        r.endDate,
+        r.days,
+        r.status,
+        r.reason,
+        r.createdBy,
+        r.createdDate,
+      ]);
     } else if (selectedReport === 'monthly') {
-      header = 'Month,Year,Total Leaves Logged,Total Days Taken,Unique Staff on Leave\n';
-      rows = monthlySummaryData
-        .map(
-          (r) =>
-            `"${r.month}",${r.year},${r.totalLeaves},${r.totalDays},${r.employeesOnLeave}`
-        )
-        .join('\n');
+      headers = ['Month', 'Year', 'Total Leaves Logged', 'Total Days Taken', 'Unique Staff on Leave'];
+      rows = monthlySummaryData.map((r) => [
+        r.month,
+        r.year,
+        r.totalLeaves,
+        r.totalDays,
+        r.employeesOnLeave,
+      ]);
     }
 
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ethiore_${selectedReport}_leave_report_${dateStr}.csv`;
-    a.click();
+    storageService.exportDataToCsv({
+      filename: `EthioRe_${selectedReport}_leave_report_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: `Leave ${selectedReport.toUpperCase()} Report`,
+    });
   };
 
   const reportButtons: { id: ReportType; label: string; icon: any }[] = [
@@ -292,24 +341,28 @@ export const LeaveReportsTab: React.FC<LeaveReportsTabProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export Active Report</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-bold rounded-lg transition-colors shadow-xs"
-          >
-            <Printer className="w-3.5 h-3.5 text-amber-400" />
-            <span>Print</span>
-          </button>
-        </div>
+        {isAdministrator && (
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+              title="Export active report to CSV (Administrator Only)"
+            >
+              <Download className="w-3.5 h-3.5 text-[#186382]" />
+              <span>Export Active Report</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-bold rounded-lg transition-colors shadow-xs cursor-pointer"
+              title="Print active leave report (Administrator Only)"
+            >
+              <Printer className="w-3.5 h-3.5 text-amber-400" />
+              <span>Print</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* 6 Report Selection Tabs */}

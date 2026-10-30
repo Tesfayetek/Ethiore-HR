@@ -66,25 +66,59 @@ export const LeaveHistoryTab: React.FC<LeaveHistoryTabProps> = ({
     return historyList.reduce((acc, r) => acc + r.days, 0);
   }, [historyList]);
 
+  const currentUser = storageService.getCurrentUser();
+  const isAdministrator = currentUser?.role === 'Administrator';
+
+  // Administrator-Only Print
+  const handlePrint = () => {
+    storageService.triggerPrint({
+      reportType: selectedEmployee
+        ? `Leave History - ${selectedEmployee.fullName} (${selectedEmployee.employeeId})`
+        : 'Company-Wide Leave History Ledger',
+      customTitle: 'Historical Leave Records Audit',
+    });
+  };
+
+  // Administrator-Only CSV Export
   const handleExportCSV = () => {
     const title = selectedEmployee
-      ? `${selectedEmployee.fullName}_${selectedEmployee.employeeId}_Leave_History`
+      ? `EthioRe_${selectedEmployee.employeeId}_Leave_History`
       : 'EthioRe_Company_Leave_History';
-    const header =
-      'Leave ID,Employee ID,Employee Name,Department,Leave Type,Start Date,End Date,Days,Reason,Status,Created By,Created Date\n';
-    const rows = historyList
-      .map(
-        (r) =>
-          `"${r.id}","${r.employeeId}","${r.employeeName}","${r.department}","${r.leaveType}","${r.startDate}","${r.endDate}",${r.days},"${r.reason.replace(/"/g, '""')}","${r.status}","${r.createdBy}","${r.createdDate}"`
-      )
-      .join('\n');
+    const headers = [
+      'Leave ID',
+      'Employee ID',
+      'Employee Name',
+      'Department',
+      'Leave Type',
+      'Start Date',
+      'End Date',
+      'Days',
+      'Reason',
+      'Status',
+      'Created By',
+      'Created Date',
+    ];
+    const rows = historyList.map((r) => [
+      r.id,
+      r.employeeId,
+      r.employeeName,
+      r.department,
+      r.leaveType,
+      r.startDate,
+      r.endDate,
+      r.days,
+      r.reason,
+      r.status,
+      r.createdBy,
+      r.createdDate,
+    ]);
 
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${title}_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+    storageService.exportDataToCsv({
+      filename: `${title}_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: 'Leave History Ledger',
+    });
   };
 
   return (
@@ -120,22 +154,28 @@ export const LeaveHistoryTab: React.FC<LeaveHistoryTabProps> = ({
             </select>
           </div>
 
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export History</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-bold rounded-lg transition-colors shadow-xs"
-          >
-            <Printer className="w-3.5 h-3.5 text-amber-400" />
-            <span>Print</span>
-          </button>
+          {isAdministrator && (
+            <>
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                title="Export leave history to CSV (Administrator Only)"
+              >
+                <Download className="w-3.5 h-3.5 text-[#186382]" />
+                <span>Export History</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-bold rounded-lg transition-colors shadow-xs cursor-pointer"
+                title="Print leave history ledger (Administrator Only)"
+              >
+                <Printer className="w-3.5 h-3.5 text-amber-400" />
+                <span>Print</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 

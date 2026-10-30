@@ -107,14 +107,22 @@ export const DashboardView = ({
             <span>Add Employee</span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center space-x-2 px-3.5 py-2 bg-[#082836] hover:bg-[#227D9E] text-slate-100 rounded-lg text-xs font-semibold border border-slate-700 transition-colors shadow-2xs"
-          >
-            <Printer className="w-4 h-4 text-amber-400" />
-            <span>Print</span>
-          </button>
+          {userRole === 'Administrator' && (
+            <button
+              type="button"
+              onClick={() =>
+                storageService.triggerPrint({
+                  reportType: 'Executive Dashboard Overview',
+                  customTitle: 'Operations Summary & Daily Workforce Snapshot',
+                })
+              }
+              className="inline-flex items-center space-x-2 px-3.5 py-2 bg-[#082836] hover:bg-[#227D9E] text-slate-100 rounded-lg text-xs font-semibold border border-slate-700 transition-colors shadow-2xs cursor-pointer"
+              title="Print executive overview (Administrator Only)"
+            >
+              <Printer className="w-4 h-4 text-amber-400" />
+              <span>Print</span>
+            </button>
+          )}
         </div>
       </div>
 

@@ -94,23 +94,54 @@ export const LeaveRecordsTab: React.FC<LeaveRecordsTabProps> = ({
     }
   };
 
-  // Export CSV of Leave Records
-  const handleExportCSV = () => {
-    const header =
-      'Leave ID,Employee ID,Employee Name,Department,Leave Type,Start Date,End Date,Number of Days,Reason,Status,Created By,Created Date\n';
-    const rows = filteredRecords
-      .map(
-        (r) =>
-          `"${r.id}","${r.employeeId}","${r.employeeName}","${r.department}","${r.leaveType}","${r.startDate}","${r.endDate}",${r.days},"${r.reason.replace(/"/g, '""')}","${r.status}","${r.createdBy}","${r.createdDate}"`
-      )
-      .join('\n');
+  const currentUser = storageService.getCurrentUser();
+  const isAdministrator = currentUser?.role === 'Administrator';
 
-    const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ethiore_leave_records_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
+  // Administrator-Only Print
+  const handlePrint = () => {
+    storageService.triggerPrint({
+      reportType: 'Leave Records Master Registry',
+      customTitle: 'Official Leave Filings & Status Summary',
+    });
+  };
+
+  // Administrator-Only CSV Export
+  const handleExportCSV = () => {
+    const headers = [
+      'Leave ID',
+      'Employee ID',
+      'Employee Name',
+      'Department',
+      'Leave Type',
+      'Start Date',
+      'End Date',
+      'Number of Days',
+      'Reason',
+      'Status',
+      'Created By',
+      'Created Date',
+    ];
+    const rows = filteredRecords.map((r) => [
+      r.id,
+      r.employeeId,
+      r.employeeName,
+      r.department,
+      r.leaveType,
+      r.startDate,
+      r.endDate,
+      r.days,
+      r.reason,
+      r.status,
+      r.createdBy,
+      r.createdDate,
+    ]);
+
+    storageService.exportDataToCsv({
+      filename: `EthioRe_leave_records_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: 'Leave Records Master Registry',
+    });
   };
 
   return (
@@ -156,23 +187,29 @@ export const LeaveRecordsTab: React.FC<LeaveRecordsTabProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export CSV</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-bold rounded-lg transition-colors shadow-xs"
-          >
-            <Printer className="w-3.5 h-3.5 text-amber-400" />
-            <span>Print</span>
-          </button>
+        <div className="flex items-center space-x-2.5">
+          {isAdministrator && (
+            <>
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                title="Export leave records to CSV (Administrator Only)"
+              >
+                <Download className="w-3.5 h-3.5 text-[#186382]" />
+                <span>Export CSV</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white text-xs font-bold rounded-lg transition-colors shadow-xs cursor-pointer"
+                title="Print leave records (Administrator Only)"
+              >
+                <Printer className="w-3.5 h-3.5 text-amber-400" />
+                <span>Print</span>
+              </button>
+            </>
+          )}
           <button
             type="button"
             onClick={onOpenCreateModal}

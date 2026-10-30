@@ -23,6 +23,7 @@ import {
   Server,
   Zap,
   Upload,
+  Download,
   Image as ImageIcon,
 } from 'lucide-react';
 import {
@@ -514,6 +515,33 @@ export const ConfigurationView = ({
     }
   };
 
+  const handleExportDepartmentsCSV = () => {
+    const headers = ['Department ID', 'Code', 'Department Name', 'Head of Department', 'Description'];
+    const rows = departments.map((d) => [d.id, d.code, d.name, d.headOfDepartment || 'N/A', d.description || '']);
+    storageService.exportDataToCsv({
+      filename: `EthioRe_Departments_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: 'Department Records',
+    });
+  };
+
+  const handleExportAuditLogsCSV = () => {
+    const filtered = auditLogs.filter((log) => {
+      if (auditFilter === 'config') return log.module === 'Configuration' || Boolean(log.settingName);
+      if (auditFilter === 'deletions') return log.action === 'DELETE';
+      return true;
+    });
+    const headers = ['Log ID', 'Timestamp', 'Performed By', 'User ID', 'Role', 'Action', 'Module', 'Details'];
+    const rows = filtered.map((l) => [l.id, l.timestamp, l.performedBy, l.userId || '', l.userRole, l.action, l.module, l.details]);
+    storageService.exportDataToCsv({
+      filename: `EthioRe_System_Audit_Logs_${new Date().toISOString().split('T')[0]}.csv`,
+      headers,
+      rows,
+      reportType: 'System Audit Logs',
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Title Header */}
@@ -926,6 +954,26 @@ export const ConfigurationView = ({
               <span className="font-bold text-xs text-slate-700 uppercase tracking-wider">
                 Configured Departments ({departments.length})
               </span>
+              {isAdmin && (
+                <div className="flex items-center space-x-2 no-print">
+                  <button
+                    type="button"
+                    onClick={handleExportDepartmentsCSV}
+                    className="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold rounded text-xs transition-colors shadow-2xs"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Export CSV</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => storageService.triggerPrint({ reportType: 'Departments Configuration' })}
+                    className="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-[#186382] hover:bg-[#227D9E] text-white font-semibold rounded text-xs transition-colors shadow-2xs"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Print</span>
+                  </button>
+                </div>
+              )}
             </div>
             <table className="w-full text-left text-xs divide-y divide-slate-200">
               <thead className="bg-slate-50 text-slate-600 font-semibold">
@@ -1524,7 +1572,7 @@ export const ConfigurationView = ({
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs h-fit space-y-4 text-xs">
               <h3 className="font-bold text-slate-900 text-sm">Create System User</h3>
               <p className="text-[11px] text-slate-500">
-                Strict RBAC: Exactly three application roles exist: <strong>Administrator</strong>, <strong>HR Admin</strong>, and <strong>Employee</strong>.
+                Strict RBAC: System application roles: <strong>Administrator</strong>, <strong>HR Admin</strong>, <strong>HR Officer</strong>, and <strong>Employee</strong>.
               </p>
               <form onSubmit={handleCreateUser} className="space-y-3">
                 <div>
@@ -1558,6 +1606,7 @@ export const ConfigurationView = ({
                   >
                     <option value="Administrator">Administrator (Full System, Configuration & RBAC)</option>
                     <option value="HR Admin">HR Admin (Master Data, Leave & Attendance Operations)</option>
+                    <option value="HR Officer">HR Officer (Leave & Attendance Operations)</option>
                     <option value="Employee">Employee (Staff Self-Service Portal Only)</option>
                   </select>
                 </div>
@@ -1600,6 +1649,8 @@ export const ConfigurationView = ({
                             ? 'bg-purple-100 text-purple-800 border border-purple-200'
                             : u.role === 'HR Admin'
                             ? 'bg-teal-100 text-teal-800 border border-teal-200'
+                            : u.role === 'HR Officer'
+                            ? 'bg-blue-100 text-blue-800 border border-blue-200'
                             : 'bg-slate-100 text-slate-800 border border-slate-200'
                         }`}
                       >
@@ -1616,6 +1667,7 @@ export const ConfigurationView = ({
                         >
                           <option value="Administrator">Administrator</option>
                           <option value="HR Admin">HR Admin</option>
+                          <option value="HR Officer">HR Officer</option>
                           <option value="Employee">Employee</option>
                         </select>
                       </td>
@@ -1673,14 +1725,26 @@ export const ConfigurationView = ({
                 >
                   Deletions ({auditLogs.filter((l) => l.action === 'DELETE').length})
                 </button>
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="inline-flex items-center space-x-1.5 px-3 py-1 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
-                >
-                  <Printer className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Print</span>
-                </button>
+                {isAdmin && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleExportAuditLogsCSV}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-bold shadow-xs transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Export CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => storageService.triggerPrint({ reportType: 'Audit Logs' })}
+                      className="inline-flex items-center space-x-1.5 px-3 py-1 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Print</span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>

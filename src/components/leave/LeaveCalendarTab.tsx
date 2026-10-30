@@ -38,6 +38,8 @@ export const LeaveCalendarTab: React.FC<LeaveCalendarTabProps> = ({
   const departments = storageService.getDepartments();
   const holidays = storageService.getHolidays();
   const employees = storageService.getEmployees();
+  const currentUser = storageService.getCurrentUser();
+  const isAdministrator = currentUser?.role === 'Administrator';
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -133,15 +135,23 @@ export const LeaveCalendarTab: React.FC<LeaveCalendarTabProps> = ({
             </button>
           </div>
 
-          {/* Print Button */}
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
-          >
-            <Printer className="w-3.5 h-3.5 text-amber-400" />
-            <span>Print</span>
-          </button>
+          {/* Administrator-Only Print Button */}
+          {isAdministrator && (
+            <button
+              type="button"
+              onClick={() =>
+                storageService.triggerPrint({
+                  reportType: 'Monthly Staff Leave Calendar',
+                  customTitle: `Schedule for ${currentDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })}`,
+                })
+              }
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-[#186382] hover:bg-[#227D9E] text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              title="Print leave calendar (Administrator Only)"
+            >
+              <Printer className="w-3.5 h-3.5 text-amber-400" />
+              <span>Print</span>
+            </button>
+          )}
         </div>
       </div>
 
